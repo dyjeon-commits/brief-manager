@@ -1,4 +1,28 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+
+function NoticeAccordion({ n, onEdit, onDelete }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div style={{ border: '1.5px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+      <div onClick={() => setOpen(p => !p)}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', cursor: 'pointer', userSelect: 'none' }}>
+        <span style={{ fontWeight: 700, fontSize: 14 }}>{n.title}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button className="btn btn-ghost" style={{ fontSize: 12, padding: '3px 8px' }}
+            onClick={e => { e.stopPropagation(); onEdit(n) }}>수정</button>
+          <button className="btn btn-danger" style={{ fontSize: 12, padding: '3px 8px' }}
+            onClick={e => { e.stopPropagation(); onDelete(n.id) }}>삭제</button>
+          <span style={{ fontSize: 16, color: 'var(--text2)', display: 'inline-block', transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>▾</span>
+        </div>
+      </div>
+      {open && n.content && (
+        <div style={{ padding: '0 16px 14px', fontSize: 13, color: 'var(--text2)', whiteSpace: 'pre-wrap', lineHeight: 1.6, borderTop: '1px solid var(--border)' }}>
+          <div style={{ paddingTop: 10 }}>{n.content}</div>
+        </div>
+      )}
+    </div>
+  )
+}
 import { getAll, getNotices, addNotice, updateNotice, deleteNotice } from '../api'
 import { useAuth } from '../AuthContext'
 
@@ -116,23 +140,8 @@ export default function Dashboard({ onNavigate }) {
             등록된 공지가 없습니다. 외주 디자이너 링크에 표시할 공지를 추가해보세요.
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {notices.map(n => (
-              <div key={n.id} style={{ border: '1.5px solid var(--border)', borderRadius: 10, padding: '14px 16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: n.content ? 6 : 0 }}>{n.title}</div>
-                    {n.content && (
-                      <div style={{ fontSize: 13, color: 'var(--text2)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{n.content}</div>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                    <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => openEditNotice(n)}>수정</button>
-                    <button className="btn btn-danger" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => removeNotice(n.id)}>삭제</button>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {notices.map(n => <NoticeAccordion key={n.id} n={n} onEdit={openEditNotice} onDelete={removeNotice} />)}
           </div>
         )}
       </div>
