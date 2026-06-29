@@ -108,7 +108,13 @@ export default function DesignerView({ token }) {
                 <div key={n.id} style={{ background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: 12, padding: '16px 18px' }}>
                   <div style={{ fontWeight: 700, fontSize: 14, color: '#92400e', marginBottom: n.content ? 8 : 0 }}>{n.title}</div>
                   {n.content && (
-                    <div style={{ fontSize: 13, color: '#78350f', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{n.content}</div>
+                    <div style={{ fontSize: 13, color: '#78350f', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
+                      {n.content.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+                        /^https?:\/\//.test(part)
+                          ? <a key={i} href={part} target="_blank" rel="noreferrer" style={{ color: '#b45309', fontWeight: 600, textDecoration: 'underline' }}>{part}</a>
+                          : part
+                      )}
+                    </div>
                   )}
                 </div>
               ))}
