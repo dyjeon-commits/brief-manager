@@ -1,0 +1,126 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f4f4f8;
+  --surface: #ffffff;
+  --border: #e2e2ea;
+  --text: #18181b;
+  --text2: #71717a;
+  --accent: #6366f1;
+  --accent-bg: #eef2ff;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --r: 10px;
+  --shadow: 0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { cursor: pointer; font-family: inherit; font-size: 14px; border: none; background: none; }
+input, textarea, select { font-family: inherit; font-size: 14px; }
+
+/* Layout */
+.layout { display: flex; height: 100vh; overflow: hidden; }
+
+.sidebar {
+  width: 210px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 24px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  flex-shrink: 0;
+}
+
+.logo { font-size: 15px; font-weight: 700; color: var(--accent); padding: 0 10px; }
+
+nav { display: flex; flex-direction: column; gap: 2px; }
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 8px;
+  color: var(--text2); font-weight: 500;
+  width: 100%; text-align: left;
+  transition: all .15s;
+}
+.nav-item:hover { background: var(--bg); color: var(--text); }
+.nav-item.active { background: var(--accent-bg); color: var(--accent); }
+
+.main { flex: 1; overflow-y: auto; padding: 36px 40px; }
+
+/* Page header */
+.ph { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+.ph h1 { font-size: 22px; font-weight: 700; }
+
+/* Card */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 8px; font-weight: 500;
+  transition: all .15s;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #4f52d9; }
+.btn-ghost { color: var(--text2); }
+.btn-ghost:hover { background: var(--bg); color: var(--text); }
+.btn-danger { background: #fee2e2; color: var(--danger); }
+.btn-danger:hover { background: #fecaca; }
+
+/* Status tags */
+.tag {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 12px; font-weight: 600;
+}
+.tag-unassigned { background: #f4f4f5; color: #71717a; }
+.tag-assigned    { background: #dbeafe; color: #2563eb; }
+.tag-inprogress  { background: #fef9c3; color: #b45309; }
+.tag-completed   { background: #dcfce7; color: #15803d; }
+
+/* Form / Modal */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.3);
+  display: flex; align-items: center; justify-content: center; z-index: 50;
+  animation: fi .15s;
+}
+.modal {
+  background: var(--surface); border-radius: 14px;
+  padding: 28px; width: 460px; max-width: 95vw;
+  box-shadow: 0 24px 60px rgba(0,0,0,.18);
+  animation: su .2s;
+}
+.modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+.fg { margin-bottom: 14px; }
+.fg label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
+.fg input, .fg textarea, .fg select {
+  width: 100%; padding: 9px 12px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text);
+  transition: border-color .15s;
+}
+.fg input:focus, .fg textarea:focus, .fg select:focus { outline: none; border-color: var(--accent); }
+.fg textarea { resize: vertical; min-height: 72px; }
+.ma { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+
+/* Empty state */
+.empty { text-align: center; padding: 64px 24px; color: var(--text2); }
+.empty-icon { font-size: 40px; margin-bottom: 12px; }
+.empty p { margin-bottom: 20px; font-size: 15px; }
+
+@keyframes fi { from { opacity: 0 } to { opacity: 1 } }
+@keyframes su { from { transform: translateY(12px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
