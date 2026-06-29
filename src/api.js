@@ -15,7 +15,7 @@ export async function getAll(pmId = null, isSuperadmin = false) {
   }
 
   let labelsQ = supabase.from('labels').select('*').order('name')
-  if (!isSuperadmin && pmId) labelsQ = labelsQ.eq('pm_id', pmId)
+  if (pmId) labelsQ = labelsQ.eq('pm_id', pmId)
 
   const [{ data: designers }, { data: topics }, { data: assignments }, { data: labels }, { data: designerLabels }, { data: topicLabels }] = await Promise.all([
     designersQ,
