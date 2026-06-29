@@ -6,13 +6,22 @@ const supabase = createClient(
   'sb_publishable_7ppkQFYB3qYlXnrSVo-zyg_JEOi6iW-'
 )
 
-const STATUS_LABEL = { assigned: '배정됨', inprogress: '작업중', completed: '완료' }
-const STATUS_COLOR = { assigned: '#6366f1', inprogress: '#3b82f6', completed: '#22c55e' }
+const STATUS_LABEL = {
+  assigned: '제출 안함', not_submitted: '제출 안함',
+  inprogress: '진행 중', revision1: '1차 수정',
+  revising: '수정 중', completed: '완료'
+}
+const STATUS_COLOR = {
+  assigned: '#94a3b8', not_submitted: '#94a3b8',
+  inprogress: '#3b82f6', revision1: '#f59e0b',
+  revising: '#8b5cf6', completed: '#22c55e'
+}
 
 export default function DesignerView({ token }) {
   const [designer, setDesigner] = useState(null)
   const [assignments, setAssignments] = useState([])
   const [topics, setTopics] = useState([])
+  const [notices, setNotices] = useState([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
@@ -24,7 +33,13 @@ export default function DesignerView({ token }) {
     if (!d) { setNotFound(true); setLoading(false); return }
     setDesigner(d)
 
-    const { data: a } = await supabase.from('assignments').select('*').eq('designer_id', d.id)
+    const [{ data: a }, { data: n }] = await Promise.all([
+      supabase.from('assignments').select('*').eq('designer_id', d.id),
+      d.pm_id
+        ? supabase.from('notices').select('*').eq('pm_id', d.pm_id).order('created_at', { ascending: false })
+        : Promise.resolve({ data: [] }),
+    ])
+
     const topicIds = (a || []).map(x => x.topic_id)
     let topicData = []
     if (topicIds.length > 0) {
@@ -33,6 +48,7 @@ export default function DesignerView({ token }) {
     }
     setAssignments(a || [])
     setTopics(topicData)
+    setNotices(n || [])
     setLoading(false)
   }
 
@@ -57,6 +73,7 @@ export default function DesignerView({ token }) {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+      {/* 헤더 */}
       <div style={{ background: 'white', borderBottom: '1px solid #e2e8f0', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 14 }}>
         <div style={{ width: 42, height: 42, borderRadius: '50%', background: '#ede9fe', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700 }}>
           {designer.name[0]}
@@ -78,6 +95,27 @@ export default function DesignerView({ token }) {
       </div>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '28px 20px' }}>
+
+        {/* 공지/가이드 */}
+        {notices.length > 0 && (
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>
+              📢 공지 / 가이드
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {notices.map(n => (
+                <div key={n.id} style={{ background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: 12, padding: '16px 18px' }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: '#92400e', marginBottom: n.content ? 8 : 0 }}>{n.title}</div>
+                  {n.content && (
+                    <div style={{ fontSize: 13, color: '#78350f', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{n.content}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 기획서 목록 */}
         {assignments.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8' }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
@@ -110,6 +148,7 @@ export default function DesignerView({ token }) {
 
 function AssignmentCard({ a, t }) {
   const isOverdue = t?.deadline && a.status !== 'completed' && new Date(t.deadline) < new Date()
+  const status = a.status || 'not_submitted'
   return (
     <div style={{ background: 'white', borderRadius: 12, padding: '18px 20px', border: `1.5px solid ${isOverdue ? '#fca5a5' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', gap: 16 }}>
       <div style={{ flex: 1 }}>
@@ -125,8 +164,8 @@ function AssignmentCard({ a, t }) {
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
-        <span style={{ background: STATUS_COLOR[a.status] + '22', color: STATUS_COLOR[a.status], padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600 }}>
-          {STATUS_LABEL[a.status]}
+        <span style={{ background: (STATUS_COLOR[status] || '#94a3b8') + '22', color: STATUS_COLOR[status] || '#94a3b8', padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600 }}>
+          {STATUS_LABEL[status] || status}
         </span>
         {t?.brief_url && (
           <a href={t.brief_url} target="_blank" rel="noreferrer"

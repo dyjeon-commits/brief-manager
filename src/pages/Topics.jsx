@@ -294,19 +294,30 @@ export default function Topics() {
               <div className="fg"><label>디자인 마감일</label><input type="date" value={form.deadline} onChange={e => setForm(p => ({ ...p, deadline: e.target.value }))} /></div>
               <div className="fg"><label>총 제작 페이지</label><input type="number" value={form.pages} onChange={e => setForm(p => ({ ...p, pages: e.target.value }))} placeholder="예: 20" min="1" /></div>
             </div>
-            {labels.length > 0 && (
+            {labels.filter(l => !l.parent_id).length > 0 && (
               <div className="fg">
                 <label>라벨 (이 주제에 맞는 디자이너 유형)</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {labels.map(l => {
-                    const on = selectedLabels.includes(l.id)
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {labels.filter(l => !l.parent_id).map(cat => {
+                    const children = labels.filter(l => l.parent_id === cat.id)
+                    if (children.length === 0) return null
                     return (
-                      <div key={l.id} onClick={() => toggleLabel(l.id)}
-                        style={{ padding: '5px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                          background: on ? l.color : l.color + '22',
-                          color: on ? 'white' : l.color,
-                          border: `2px solid ${l.color}` }}>
-                        {l.name}
+                      <div key={cat.id}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: cat.color, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>{cat.name}</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {children.map(l => {
+                            const on = selectedLabels.includes(l.id)
+                            return (
+                              <div key={l.id} onClick={() => toggleLabel(l.id)}
+                                style={{ padding: '5px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                                  background: on ? cat.color : cat.color + '22',
+                                  color: on ? 'white' : cat.color,
+                                  border: `2px solid ${cat.color}` }}>
+                                {l.name}
+                              </div>
+                            )
+                          })}
+                        </div>
                       </div>
                     )
                   })}

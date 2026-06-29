@@ -1,20 +1,63 @@
 import React, { useState, useEffect } from 'react'
-import { getAll } from '../api'
+import { getAll, getNotices, addNotice, updateNotice, deleteNotice } from '../api'
 import { useAuth } from '../AuthContext'
 
 export default function Dashboard({ onNavigate }) {
   const { profile } = useAuth()
   const [data, setData] = useState({ designers: [], topics: [], assignments: [] })
+  const [notices, setNotices] = useState([])
   const [loading, setLoading] = useState(true)
+  const [noticeModal, setNoticeModal] = useState(false)
+  const [noticeForm, setNoticeForm] = useState({ title: '', content: '' })
+  const [editNoticeId, setEditNoticeId] = useState(null)
+  const [savingNotice, setSavingNotice] = useState(false)
 
   const isSuperadmin = profile?.role === 'superadmin'
 
-  useEffect(() => {
-    getAll(profile?.id, isSuperadmin).then(d => { setData(d); setLoading(false) })
-  }, [profile])
+  useEffect(() => { load() }, [profile])
+
+  async function load() {
+    setLoading(true)
+    const [d, n] = await Promise.all([
+      getAll(profile?.id, isSuperadmin),
+      getNotices(profile?.id),
+    ])
+    setData(d)
+    setNotices(n)
+    setLoading(false)
+  }
+
+  async function saveNotice() {
+    if (!noticeForm.title.trim()) return
+    setSavingNotice(true)
+    if (editNoticeId) await updateNotice(editNoticeId, noticeForm.title, noticeForm.content)
+    else await addNotice(noticeForm.title, noticeForm.content, profile?.id)
+    setSavingNotice(false)
+    setNoticeModal(false)
+    setNoticeForm({ title: '', content: '' })
+    setEditNoticeId(null)
+    setNotices(await getNotices(profile?.id))
+  }
+
+  function openAddNotice() {
+    setNoticeForm({ title: '', content: '' })
+    setEditNoticeId(null)
+    setNoticeModal(true)
+  }
+
+  function openEditNotice(n) {
+    setNoticeForm({ title: n.title, content: n.content || '' })
+    setEditNoticeId(n.id)
+    setNoticeModal(true)
+  }
+
+  async function removeNotice(id) {
+    if (!confirm('공지를 삭제할까요?')) return
+    await deleteNotice(id)
+    setNotices(await getNotices(profile?.id))
+  }
 
   const { designers, topics, assignments } = data
-  const designerMap = Object.fromEntries(designers.map(d => [String(d.id), d]))
   const topicMap = Object.fromEntries(topics.map(t => [String(t.id), t]))
 
   const stats = {
@@ -60,6 +103,38 @@ export default function Dashboard({ onNavigate }) {
             <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 4 }}>{s.label}</div>
           </div>
         ))}
+      </div>
+
+      {/* 공지/가이드 관리 */}
+      <div className="card" style={{ padding: '20px 24px', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <strong style={{ fontSize: 15 }}>📢 공지 / 가이드</strong>
+          <button className="btn btn-primary" style={{ fontSize: 13, padding: '6px 14px' }} onClick={openAddNotice}>+ 공지 추가</button>
+        </div>
+        {notices.length === 0 ? (
+          <div style={{ color: 'var(--text2)', fontSize: 13, padding: '12px 0' }}>
+            등록된 공지가 없습니다. 외주 디자이너 링크에 표시할 공지를 추가해보세요.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {notices.map(n => (
+              <div key={n.id} style={{ border: '1.5px solid var(--border)', borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: n.content ? 6 : 0 }}>{n.title}</div>
+                    {n.content && (
+                      <div style={{ fontSize: 13, color: 'var(--text2)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{n.content}</div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => openEditNotice(n)}>수정</button>
+                    <button className="btn btn-danger" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => removeNotice(n.id)}>삭제</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -112,6 +187,30 @@ export default function Dashboard({ onNavigate }) {
           }
         </div>
       </div>
+
+      {noticeModal && (
+        <div className="overlay" onClick={() => setNoticeModal(false)}>
+          <div className="modal" style={{ width: 500 }} onClick={e => e.stopPropagation()}>
+            <h2>{editNoticeId ? '공지 수정' : '공지 추가'}</h2>
+            <div className="fg">
+              <label>제목 *</label>
+              <input value={noticeForm.title} onChange={e => setNoticeForm(p => ({ ...p, title: e.target.value }))}
+                placeholder="예: 작업 가이드, 제출 양식 안내" />
+            </div>
+            <div className="fg">
+              <label>내용</label>
+              <textarea value={noticeForm.content} onChange={e => setNoticeForm(p => ({ ...p, content: e.target.value }))}
+                placeholder="외주 디자이너에게 전달할 내용을 입력하세요." rows={5} />
+            </div>
+            <div className="ma">
+              <button className="btn btn-ghost" onClick={() => setNoticeModal(false)}>취소</button>
+              <button className="btn btn-primary" onClick={saveNotice} disabled={savingNotice || !noticeForm.title.trim()}>
+                {savingNotice ? '저장 중...' : editNoticeId ? '저장' : '추가'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

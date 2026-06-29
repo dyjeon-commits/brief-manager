@@ -201,7 +201,8 @@ export default function Assignments() {
         /* ── 보드 뷰 ── */
         <div style={{ display: 'flex', gap: 14, overflowX: 'auto', alignItems: 'flex-start', paddingBottom: 16 }}>
           {STATUS_COLUMNS.map(col => {
-            const cards = filtered.filter(a => (a.status || 'not_submitted') === col.value)
+            const norm = s => (!s || s === 'assigned') ? 'not_submitted' : s
+            const cards = filtered.filter(a => norm(a.status) === col.value)
             return (
               <div key={col.value}
                 onDragOver={onDragOver}

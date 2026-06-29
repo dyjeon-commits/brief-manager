@@ -99,8 +99,8 @@ export async function getLabels() {
   const { data } = await supabase.from('labels').select('*').order('name')
   return data || []
 }
-export async function addLabel(name, color, pmId) {
-  const { data } = await supabase.from('labels').insert({ name, color, pm_id: pmId }).select().single()
+export async function addLabel(name, color, pmId, parentId = null) {
+  const { data } = await supabase.from('labels').insert({ name, color, pm_id: pmId, parent_id: parentId }).select().single()
   return data
 }
 export async function updateLabel(id, name, color) {
@@ -116,6 +116,22 @@ export async function setDesignerLabels(designerId, labelIds) {
   if (labelIds.length > 0) {
     await supabase.from('designer_labels').insert(labelIds.map(lid => ({ designer_id: designerId, label_id: lid })))
   }
+}
+
+// Notices
+export async function getNotices(pmId) {
+  const { data } = await supabase.from('notices').select('*').eq('pm_id', pmId).order('created_at', { ascending: false })
+  return data || []
+}
+export async function addNotice(title, content, pmId) {
+  const { data } = await supabase.from('notices').insert({ title, content, pm_id: pmId }).select().single()
+  return data
+}
+export async function updateNotice(id, title, content) {
+  await supabase.from('notices').update({ title, content }).eq('id', id)
+}
+export async function deleteNotice(id) {
+  await supabase.from('notices').delete().eq('id', id)
 }
 
 // Topic labels
