@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { getAll, addTopic, updateTopic, deleteTopic, setTopicLabels } from '../api'
+import { useAuth } from '../AuthContext'
 
 const TYPE_OPTIONS = [
   '프레젠테이션(1920x1080)', '프레젠테이션(1280x720)',
@@ -9,6 +10,9 @@ const TYPE_OPTIONS = [
 const EMPTY = { name: '', briefUrl: '', type: '', type2: '', deadline: '', pages: '' }
 
 export default function Topics() {
+  const { profile } = useAuth()
+  const isSuperadmin = profile?.role === 'superadmin'
+
   const [topics, setTopics] = useState([])
   const [assignments, setAssignments] = useState([])
   const [labels, setLabels] = useState([])
@@ -20,11 +24,11 @@ export default function Topics() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [profile])
 
   async function load() {
     setLoading(true)
-    const data = await getAll()
+    const data = await getAll(profile?.id, isSuperadmin)
     setTopics(data.topics || [])
     setAssignments(data.assignments || [])
     setLabels(data.labels || [])
@@ -46,7 +50,7 @@ export default function Topics() {
     let id = editId
     if (editId) await updateTopic({ id: editId, ...form })
     else {
-      const result = await addTopic(form)
+      const result = await addTopic(form, profile?.id)
       id = result.id
     }
     await setTopicLabels(id, selectedLabels)

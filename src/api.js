@@ -5,27 +5,40 @@ const supabase = createClient(
   'sb_publishable_7ppkQFYB3qYlXnrSVo-zyg_JEOi6iW-'
 )
 
-export async function getAll() {
+export async function getAll(pmId = null, isSuperadmin = false) {
+  let designersQ = supabase.from('designers').select('*').order('created_at')
+  let topicsQ = supabase.from('topics').select('*').order('created_at')
+
+  if (!isSuperadmin && pmId) {
+    designersQ = designersQ.eq('pm_id', pmId)
+    topicsQ = topicsQ.eq('pm_id', pmId)
+  }
+
   const [{ data: designers }, { data: topics }, { data: assignments }, { data: labels }, { data: designerLabels }, { data: topicLabels }] = await Promise.all([
-    supabase.from('designers').select('*').order('created_at'),
-    supabase.from('topics').select('*').order('created_at'),
+    designersQ,
+    topicsQ,
     supabase.from('assignments').select('*').order('created_at'),
     supabase.from('labels').select('*').order('name'),
     supabase.from('designer_labels').select('*'),
     supabase.from('topic_labels').select('*'),
   ])
+
+  const dIds = new Set((designers || []).map(d => d.id))
+  const tIds = new Set((topics || []).map(t => t.id))
+  const filteredAssignments = (assignments || []).filter(a => dIds.has(a.designer_id) || tIds.has(a.topic_id))
+
   return {
     designers: designers || [],
     topics: topics || [],
-    assignments: assignments || [],
+    assignments: filteredAssignments,
     labels: labels || [],
     designerLabels: designerLabels || [],
     topicLabels: topicLabels || [],
   }
 }
 
-export async function addDesigner(data) {
-  const { data: result } = await supabase.from('designers').insert(data).select().single()
+export async function addDesigner(data, pmId) {
+  const { data: result } = await supabase.from('designers').insert({ ...data, pm_id: pmId }).select().single()
   return result
 }
 export async function updateDesigner(data) {
@@ -36,7 +49,7 @@ export async function deleteDesigner(id) {
   await supabase.from('designers').delete().eq('id', id)
 }
 
-export async function addTopic(data) {
+export async function addTopic(data, pmId) {
   const { data: result } = await supabase.from('topics').insert({
     name: data.name,
     brief_url: data.briefUrl,
@@ -44,6 +57,7 @@ export async function addTopic(data) {
     type2: data.type2,
     deadline: data.deadline || null,
     pages: data.pages ? parseInt(data.pages) : null,
+    pm_id: pmId,
   }).select().single()
   return result
 }
@@ -100,10 +114,6 @@ export async function setDesignerLabels(designerId, labelIds) {
     await supabase.from('designer_labels').insert(labelIds.map(lid => ({ designer_id: designerId, label_id: lid })))
   }
 }
-export async function getDesignerLabels() {
-  const { data } = await supabase.from('designer_labels').select('*')
-  return data || []
-}
 
 // Topic labels
 export async function setTopicLabels(topicId, labelIds) {
@@ -111,8 +121,4 @@ export async function setTopicLabels(topicId, labelIds) {
   if (labelIds.length > 0) {
     await supabase.from('topic_labels').insert(labelIds.map(lid => ({ topic_id: topicId, label_id: lid })))
   }
-}
-export async function getTopicLabels() {
-  const { data } = await supabase.from('topic_labels').select('*')
-  return data || []
 }

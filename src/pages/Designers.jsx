@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { getAll, addDesigner, updateDesigner, deleteDesigner, setDesignerLabels } from '../api'
+import { useAuth } from '../AuthContext'
 
 const EMPTY = { name: '', contact: '', specialty: '', note: '' }
 
 export default function Designers() {
+  const { profile } = useAuth()
+  const isSuperadmin = profile?.role === 'superadmin'
+
   const [designers, setDesigners] = useState([])
   const [assignments, setAssignments] = useState([])
   const [labels, setLabels] = useState([])
@@ -15,11 +19,11 @@ export default function Designers() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [profile])
 
   async function load() {
     setLoading(true)
-    const data = await getAll()
+    const data = await getAll(profile?.id, isSuperadmin)
     setDesigners(data.designers || [])
     setAssignments(data.assignments || [])
     setLabels(data.labels || [])
@@ -41,7 +45,7 @@ export default function Designers() {
     let id = editId
     if (editId) await updateDesigner({ id: editId, ...form })
     else {
-      const result = await addDesigner(form)
+      const result = await addDesigner(form, profile?.id)
       id = result.id
     }
     await setDesignerLabels(id, selectedLabels)

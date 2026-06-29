@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react'
 import { getAll } from '../api'
+import { useAuth } from '../AuthContext'
 
 export default function Dashboard({ onNavigate }) {
+  const { profile } = useAuth()
   const [data, setData] = useState({ designers: [], topics: [], assignments: [] })
   const [loading, setLoading] = useState(true)
 
+  const isSuperadmin = profile?.role === 'superadmin'
+
   useEffect(() => {
-    getAll().then(d => { setData(d); setLoading(false) })
-  }, [])
+    getAll(profile?.id, isSuperadmin).then(d => { setData(d); setLoading(false) })
+  }, [profile])
 
   const { designers, topics, assignments } = data
   const designerMap = Object.fromEntries(designers.map(d => [String(d.id), d]))

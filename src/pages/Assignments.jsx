@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { getAll, addAssignment, deleteAssignment, updateAssignmentStatus } from '../api'
+import { useAuth } from '../AuthContext'
 
 const STATUS_OPTIONS = [
   { value: 'assigned',   label: '배정됨' },
@@ -8,6 +9,9 @@ const STATUS_OPTIONS = [
 ]
 
 export default function Assignments() {
+  const { profile } = useAuth()
+  const isSuperadmin = profile?.role === 'superadmin'
+
   const [assignments, setAssignments] = useState([])
   const [designers, setDesigners] = useState([])
   const [topics, setTopics] = useState([])
@@ -18,18 +22,18 @@ export default function Assignments() {
   const [form, setForm] = useState({ designerId: '', topicIds: [] })
   const [filterDesigner, setFilterDesigner] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
-  const [autoSuggestions, setAutoSuggestions] = useState([]) // {designerId, topicId} pairs
   const [showAutoModal, setShowAutoModal] = useState(false)
+  const [autoSuggestions, setAutoSuggestions] = useState([])
   const [selectedAuto, setSelectedAuto] = useState([])
   const [autoTopicId, setAutoTopicId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [profile])
 
   async function load() {
     setLoading(true)
-    const data = await getAll()
+    const data = await getAll(profile?.id, isSuperadmin)
     setAssignments(data.assignments || [])
     setDesigners(data.designers || [])
     setTopics(data.topics || [])
@@ -42,7 +46,6 @@ export default function Assignments() {
   const designerMap = Object.fromEntries(designers.map(d => [String(d.id), d]))
   const topicMap = Object.fromEntries(topics.map(t => [String(t.id), t]))
 
-  // 자동배치: 특정 주제의 라벨과 겹치는 디자이너 찾기 (부분일치)
   function getAutoSuggestedDesigners(topicId) {
     const tLabelIds = topicLabels.filter(tl => tl.topic_id === topicId).map(tl => tl.label_id)
     if (tLabelIds.length === 0) return []
@@ -58,7 +61,7 @@ export default function Assignments() {
     const suggested = getAutoSuggestedDesigners(topicId)
     setAutoTopicId(topicId)
     setAutoSuggestions(suggested)
-    setSelectedAuto(suggested.map(d => d.id)) // 기본 전체 선택
+    setSelectedAuto(suggested.map(d => d.id))
     setShowAutoModal(true)
   }
 
@@ -108,29 +111,20 @@ export default function Assignments() {
     return labels.filter(l => lIds.includes(l.id))
   }
 
-  const getTopicLabelObjs = (id) => {
-    const lIds = topicLabels.filter(tl => tl.topic_id === id).map(tl => tl.label_id)
-    return labels.filter(l => lIds.includes(l.id))
-  }
+  const autoTopics = topics.filter(t => getAutoSuggestedDesigners(t.id).length > 0)
 
   const tdStyle = { padding: '11px 16px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle', fontSize: 13 }
   const thStyle = { textAlign: 'left', padding: '10px 16px', fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.04em', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }
 
   if (loading) return <div style={{ textAlign: 'center', padding: 60, color: 'var(--text2)' }}>불러오는 중...</div>
 
-  // 자동배치 가능한 주제 목록
-  const autoTopics = topics.filter(t => getAutoSuggestedDesigners(t.id).length > 0)
-
   return (
     <div>
       <div className="ph">
         <h1>배정 현황</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-primary" onClick={() => { setForm({ designerId: '', topicIds: [] }); setModal(true) }}>+ 배정 추가</button>
-        </div>
+        <button className="btn btn-primary" onClick={() => { setForm({ designerId: '', topicIds: [] }); setModal(true) }}>+ 배정 추가</button>
       </div>
 
-      {/* 자동배치 추천 섹션 */}
       {autoTopics.length > 0 && (
         <div style={{ background: '#eff6ff', border: '1.5px solid #bfdbfe', borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
           <div style={{ fontWeight: 700, fontSize: 14, color: '#1d4ed8', marginBottom: 10 }}>⚡ 자동배치 추천</div>
@@ -229,7 +223,6 @@ export default function Assignments() {
         </div>
       )}
 
-      {/* 수동 배정 모달 */}
       {modal && (
         <div className="overlay" onClick={() => setModal(false)}>
           <div className="modal" style={{ width: 520 }} onClick={e => e.stopPropagation()}>
@@ -284,7 +277,6 @@ export default function Assignments() {
         </div>
       )}
 
-      {/* 자동배치 확인 모달 */}
       {showAutoModal && (
         <div className="overlay" onClick={() => setShowAutoModal(false)}>
           <div className="modal" style={{ width: 480 }} onClick={e => e.stopPropagation()}>
