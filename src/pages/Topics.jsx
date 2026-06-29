@@ -77,6 +77,7 @@ export default function Topics() {
 
   const [csvModal, setCsvModal] = useState(false)
   const [csvPreview, setCsvPreview] = useState([])
+  const [csvSelected, setCsvSelected] = useState([])
   const [csvImporting, setCsvImporting] = useState(false)
 
   function handleCsvFile(e) {
@@ -104,6 +105,7 @@ export default function Topics() {
         pages: r[3]?.replace(/^"|"$/g, '').trim() || '',
       })).filter(r => r.name)
       setCsvPreview(preview)
+      setCsvSelected(preview.map((_, i) => i))
       setCsvModal(true)
     }
     reader.readAsText(file, 'UTF-8')
@@ -112,10 +114,10 @@ export default function Topics() {
 
   async function importCsv() {
     setCsvImporting(true)
-    for (const row of csvPreview) {
-      await addTopic(row, profile?.id)
+    for (const i of csvSelected) {
+      await addTopic(csvPreview[i], profile?.id)
     }
-    setCsvImporting(false); setCsvModal(false); setCsvPreview([]); load()
+    setCsvImporting(false); setCsvModal(false); setCsvPreview([]); setCsvSelected([]); load()
   }
 
   const thStyle = { textAlign: 'left', padding: '10px 16px', fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.04em', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }
@@ -192,35 +194,43 @@ export default function Topics() {
 
       {csvModal && (
         <div className="overlay" onClick={() => setCsvModal(false)}>
-          <div className="modal" style={{ width: 600 }} onClick={e => e.stopPropagation()}>
-            <h2>CSV 가져오기 미리보기</h2>
-            <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 12 }}>총 <strong>{csvPreview.length}개</strong> 주제가 인식됐어요. 확인 후 가져오기 하세요.</p>
-            <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 360, overflowY: 'auto', marginBottom: 16 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr>
-                    {['주제명 (F열)', '기획서 링크 (T열)', '페이지 (D열)'].map(h => (
-                      <th key={h} style={{ textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid var(--border)', background: '#f8fafc', fontSize: 11, fontWeight: 600, color: 'var(--text2)' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {csvPreview.map((r, i) => (
-                    <tr key={i}>
-                      <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', fontWeight: 600 }}>{r.name}</td>
-                      <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {r.briefUrl ? <span style={{ color: 'var(--accent)' }}>링크 있음</span> : <span style={{ color: 'var(--text2)' }}>-</span>}
-                      </td>
-                      <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{r.pages ? `${r.pages}p` : '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="modal" style={{ width: 620 }} onClick={e => e.stopPropagation()}>
+            <h2>CSV 가져오기</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <p style={{ fontSize: 13, color: 'var(--text2)', margin: 0 }}>총 <strong>{csvPreview.length}개</strong> 인식 · <strong style={{ color: 'var(--accent)' }}>{csvSelected.length}개</strong> 선택됨</p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 10px' }}
+                  onClick={() => setCsvSelected(csvPreview.map((_, i) => i))}>전체 선택</button>
+                <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 10px' }}
+                  onClick={() => setCsvSelected([])}>전체 해제</button>
+              </div>
+            </div>
+            <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 380, overflowY: 'auto', marginBottom: 16 }}>
+              {csvPreview.map((r, i) => {
+                const on = csvSelected.includes(i)
+                return (
+                  <div key={i} onClick={() => setCsvSelected(p => p.includes(i) ? p.filter(x => x !== i) : [...p, i])}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid var(--border)',
+                      cursor: 'pointer', background: on ? 'var(--accent-bg)' : 'white', userSelect: 'none' }}>
+                    <div style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0, border: on ? 'none' : '1.5px solid var(--border)', background: on ? 'var(--accent)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {on && <span style={{ color: 'white', fontSize: 12, fontWeight: 700 }}>✓</span>}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>
+                        {r.pages ? `${r.pages}p` : '페이지 없음'} · {r.briefUrl ? <span style={{ color: 'var(--accent)' }}>기획서 링크 있음</span> : '링크 없음'}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
             <div className="ma">
               <button className="btn btn-ghost" onClick={() => setCsvModal(false)}>취소</button>
-              <button className="btn btn-primary" onClick={importCsv} disabled={csvImporting}>
-                {csvImporting ? '가져오는 중...' : `${csvPreview.length}개 가져오기`}
+              <button className="btn btn-primary" onClick={importCsv}
+                disabled={csvImporting || csvSelected.length === 0}
+                style={{ opacity: csvSelected.length === 0 ? 0.5 : 1 }}>
+                {csvImporting ? '가져오는 중...' : `${csvSelected.length}개 가져오기`}
               </button>
             </div>
           </div>
