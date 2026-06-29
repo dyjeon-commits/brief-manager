@@ -50,9 +50,14 @@ export default function Labels() {
   async function save() {
     if (!form.name.trim()) return
     setSaving(true)
-    if (editId) await updateLabel(editId, form.name.trim(), form.color)
-    else await addLabel(form.name.trim(), form.color, profile?.id, parentId)
-    setSaving(false); setModal(false); load()
+    try {
+      if (editId) await updateLabel(editId, form.name.trim(), form.color)
+      else await addLabel(form.name.trim(), form.color, profile?.id, parentId)
+      setModal(false); load()
+    } catch (e) {
+      alert('저장 실패: ' + e.message)
+    }
+    setSaving(false)
   }
 
   async function remove(l, childCount = 0) {
