@@ -3,6 +3,7 @@ import Dashboard from './pages/Dashboard'
 import Assignments from './pages/Assignments'
 import Topics from './pages/Topics'
 import Designers from './pages/Designers'
+import Labels from './pages/Labels'
 import './App.css'
 
 const NAV = [
@@ -10,6 +11,7 @@ const NAV = [
   { id: 'assignments', label: '배정 현황', icon: '📋' },
   { id: 'topics',      label: '작업주제',  icon: '📁' },
   { id: 'designers',   label: '디자이너',  icon: '👤' },
+  { id: 'labels',      label: '라벨 관리', icon: '🏷️' },
 ]
 
 export default function App() {
@@ -37,6 +39,7 @@ export default function App() {
         {page === 'assignments' && <Assignments />}
         {page === 'topics'      && <Topics />}
         {page === 'designers'   && <Designers />}
+        {page === 'labels'      && <Labels />}
       </main>
     </div>
   )

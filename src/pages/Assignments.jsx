@@ -11,10 +11,17 @@ export default function Assignments() {
   const [assignments, setAssignments] = useState([])
   const [designers, setDesigners] = useState([])
   const [topics, setTopics] = useState([])
+  const [labels, setLabels] = useState([])
+  const [designerLabels, setDesignerLabels] = useState([])
+  const [topicLabels, setTopicLabels] = useState([])
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState({ designerId: '', topicIds: [] })
   const [filterDesigner, setFilterDesigner] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [autoSuggestions, setAutoSuggestions] = useState([]) // {designerId, topicId} pairs
+  const [showAutoModal, setShowAutoModal] = useState(false)
+  const [selectedAuto, setSelectedAuto] = useState([])
+  const [autoTopicId, setAutoTopicId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -26,11 +33,42 @@ export default function Assignments() {
     setAssignments(data.assignments || [])
     setDesigners(data.designers || [])
     setTopics(data.topics || [])
+    setLabels(data.labels || [])
+    setDesignerLabels(data.designerLabels || [])
+    setTopicLabels(data.topicLabels || [])
     setLoading(false)
   }
 
   const designerMap = Object.fromEntries(designers.map(d => [String(d.id), d]))
   const topicMap = Object.fromEntries(topics.map(t => [String(t.id), t]))
+
+  // 자동배치: 특정 주제의 라벨과 겹치는 디자이너 찾기 (부분일치)
+  function getAutoSuggestedDesigners(topicId) {
+    const tLabelIds = topicLabels.filter(tl => tl.topic_id === topicId).map(tl => tl.label_id)
+    if (tLabelIds.length === 0) return []
+    const alreadyAssigned = assignments.filter(a => String(a.topic_id) === String(topicId)).map(a => a.designer_id)
+    return designers.filter(d => {
+      if (alreadyAssigned.includes(d.id)) return false
+      const dLabelIds = designerLabels.filter(dl => dl.designer_id === d.id).map(dl => dl.label_id)
+      return dLabelIds.some(id => tLabelIds.includes(id))
+    })
+  }
+
+  function openAutoModal(topicId) {
+    const suggested = getAutoSuggestedDesigners(topicId)
+    setAutoTopicId(topicId)
+    setAutoSuggestions(suggested)
+    setSelectedAuto(suggested.map(d => d.id)) // 기본 전체 선택
+    setShowAutoModal(true)
+  }
+
+  async function confirmAuto() {
+    setSaving(true)
+    for (const dId of selectedAuto) {
+      await addAssignment({ designerId: dId, topicId: autoTopicId })
+    }
+    setSaving(false); setShowAutoModal(false); load()
+  }
 
   const assignedTopicIds = form.designerId
     ? assignments.filter(a => String(a.designer_id) === String(form.designerId)).map(a => String(a.topic_id))
@@ -65,17 +103,50 @@ export default function Assignments() {
     return t?.deadline && a.status !== 'completed' && new Date(t.deadline) < new Date()
   }
 
+  const getDesignerLabelObjs = (id) => {
+    const lIds = designerLabels.filter(dl => dl.designer_id === id).map(dl => dl.label_id)
+    return labels.filter(l => lIds.includes(l.id))
+  }
+
+  const getTopicLabelObjs = (id) => {
+    const lIds = topicLabels.filter(tl => tl.topic_id === id).map(tl => tl.label_id)
+    return labels.filter(l => lIds.includes(l.id))
+  }
+
   const tdStyle = { padding: '11px 16px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle', fontSize: 13 }
   const thStyle = { textAlign: 'left', padding: '10px 16px', fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.04em', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }
 
   if (loading) return <div style={{ textAlign: 'center', padding: 60, color: 'var(--text2)' }}>불러오는 중...</div>
 
+  // 자동배치 가능한 주제 목록
+  const autoTopics = topics.filter(t => getAutoSuggestedDesigners(t.id).length > 0)
+
   return (
     <div>
       <div className="ph">
         <h1>배정 현황</h1>
-        <button className="btn btn-primary" onClick={() => { setForm({ designerId: '', topicIds: [] }); setModal(true) }}>+ 배정 추가</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-primary" onClick={() => { setForm({ designerId: '', topicIds: [] }); setModal(true) }}>+ 배정 추가</button>
+        </div>
       </div>
+
+      {/* 자동배치 추천 섹션 */}
+      {autoTopics.length > 0 && (
+        <div style={{ background: '#eff6ff', border: '1.5px solid #bfdbfe', borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: '#1d4ed8', marginBottom: 10 }}>⚡ 자동배치 추천</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {autoTopics.map(t => {
+              const cnt = getAutoSuggestedDesigners(t.id).length
+              return (
+                <button key={t.id} onClick={() => openAutoModal(t.id)}
+                  style={{ background: 'white', border: '1.5px solid #3b82f6', borderRadius: 8, padding: '7px 14px', fontSize: 13, cursor: 'pointer', color: '#1d4ed8', fontWeight: 600 }}>
+                  {t.name} <span style={{ background: '#3b82f6', color: 'white', borderRadius: 20, padding: '1px 7px', fontSize: 11, marginLeft: 4 }}>{cnt}명 매칭</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
         <select style={{ padding: '7px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--surface)', fontSize: 13 }}
@@ -122,7 +193,14 @@ export default function Assignments() {
                         <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
                           {d?.name?.[0] || '?'}
                         </div>
-                        <span style={{ fontWeight: 500 }}>{d?.name || '알 수 없음'}</span>
+                        <div>
+                          <div style={{ fontWeight: 500 }}>{d?.name || '알 수 없음'}</div>
+                          <div style={{ display: 'flex', gap: 3, marginTop: 2 }}>
+                            {getDesignerLabelObjs(a.designer_id).map(l => (
+                              <span key={l.id} style={{ background: l.color + '22', color: l.color, padding: '1px 6px', borderRadius: 20, fontSize: 10, fontWeight: 600 }}>{l.name}</span>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td style={{ ...tdStyle, fontWeight: 500 }}>{t?.name || '-'}</td>
@@ -151,6 +229,7 @@ export default function Assignments() {
         </div>
       )}
 
+      {/* 수동 배정 모달 */}
       {modal && (
         <div className="overlay" onClick={() => setModal(false)}>
           <div className="modal" style={{ width: 520 }} onClick={e => e.stopPropagation()}>
@@ -199,6 +278,53 @@ export default function Assignments() {
                 disabled={!form.designerId || form.topicIds.length === 0 || saving}
                 style={{ opacity: (!form.designerId || form.topicIds.length === 0) ? 0.5 : 1 }}>
                 {saving ? '배정 중...' : form.topicIds.length > 0 ? `${form.topicIds.length}개 배정` : '배정'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 자동배치 확인 모달 */}
+      {showAutoModal && (
+        <div className="overlay" onClick={() => setShowAutoModal(false)}>
+          <div className="modal" style={{ width: 480 }} onClick={e => e.stopPropagation()}>
+            <h2>⚡ 자동배치 확인</h2>
+            <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 16 }}>
+              <strong style={{ color: '#111' }}>{topicMap[String(autoTopicId)]?.name}</strong> 주제의 라벨과 매칭된 디자이너입니다.<br/>
+              배정할 디자이너를 선택해주세요.
+            </p>
+            <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', marginBottom: 16 }}>
+              {autoSuggestions.map(d => {
+                const on = selectedAuto.includes(d.id)
+                const labelObjs = getDesignerLabelObjs(d.id)
+                return (
+                  <div key={d.id} onClick={() => setSelectedAuto(p => p.includes(d.id) ? p.filter(x => x !== d.id) : [...p, d.id])}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--border)',
+                      cursor: 'pointer', background: on ? 'var(--accent-bg)' : 'white', userSelect: 'none' }}>
+                    <div style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0, border: on ? 'none' : '1.5px solid var(--border)', background: on ? 'var(--accent)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {on && <span style={{ color: 'white', fontSize: 12, fontWeight: 700 }}>✓</span>}
+                    </div>
+                    <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
+                      {d.name[0]}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600 }}>{d.name}</div>
+                      <div style={{ display: 'flex', gap: 4, marginTop: 3 }}>
+                        {labelObjs.map(l => (
+                          <span key={l.id} style={{ background: l.color + '22', color: l.color, padding: '1px 7px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{l.name}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="ma">
+              <button className="btn btn-ghost" onClick={() => setShowAutoModal(false)}>취소</button>
+              <button className="btn btn-primary" onClick={confirmAuto}
+                disabled={selectedAuto.length === 0 || saving}
+                style={{ opacity: selectedAuto.length === 0 ? 0.5 : 1 }}>
+                {saving ? '배정 중...' : `${selectedAuto.length}명 배정 확정`}
               </button>
             </div>
           </div>

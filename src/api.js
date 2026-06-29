@@ -6,12 +6,22 @@ const supabase = createClient(
 )
 
 export async function getAll() {
-  const [{ data: designers }, { data: topics }, { data: assignments }] = await Promise.all([
+  const [{ data: designers }, { data: topics }, { data: assignments }, { data: labels }, { data: designerLabels }, { data: topicLabels }] = await Promise.all([
     supabase.from('designers').select('*').order('created_at'),
     supabase.from('topics').select('*').order('created_at'),
     supabase.from('assignments').select('*').order('created_at'),
+    supabase.from('labels').select('*').order('name'),
+    supabase.from('designer_labels').select('*'),
+    supabase.from('topic_labels').select('*'),
   ])
-  return { designers: designers || [], topics: topics || [], assignments: assignments || [] }
+  return {
+    designers: designers || [],
+    topics: topics || [],
+    assignments: assignments || [],
+    labels: labels || [],
+    designerLabels: designerLabels || [],
+    topicLabels: topicLabels || [],
+  }
 }
 
 export async function addDesigner(data) {
@@ -65,4 +75,44 @@ export async function deleteAssignment(id) {
 }
 export async function updateAssignmentStatus(id, status) {
   await supabase.from('assignments').update({ status }).eq('id', id)
+}
+
+// Labels
+export async function getLabels() {
+  const { data } = await supabase.from('labels').select('*').order('name')
+  return data || []
+}
+export async function addLabel(name, color) {
+  const { data } = await supabase.from('labels').insert({ name, color }).select().single()
+  return data
+}
+export async function updateLabel(id, name, color) {
+  await supabase.from('labels').update({ name, color }).eq('id', id)
+}
+export async function deleteLabel(id) {
+  await supabase.from('labels').delete().eq('id', id)
+}
+
+// Designer labels
+export async function setDesignerLabels(designerId, labelIds) {
+  await supabase.from('designer_labels').delete().eq('designer_id', designerId)
+  if (labelIds.length > 0) {
+    await supabase.from('designer_labels').insert(labelIds.map(lid => ({ designer_id: designerId, label_id: lid })))
+  }
+}
+export async function getDesignerLabels() {
+  const { data } = await supabase.from('designer_labels').select('*')
+  return data || []
+}
+
+// Topic labels
+export async function setTopicLabels(topicId, labelIds) {
+  await supabase.from('topic_labels').delete().eq('topic_id', topicId)
+  if (labelIds.length > 0) {
+    await supabase.from('topic_labels').insert(labelIds.map(lid => ({ topic_id: topicId, label_id: lid })))
+  }
+}
+export async function getTopicLabels() {
+  const { data } = await supabase.from('topic_labels').select('*')
+  return data || []
 }

@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react'
-import { getAll, addDesigner, updateDesigner, deleteDesigner } from '../api'
+import { getAll, addDesigner, updateDesigner, deleteDesigner, setDesignerLabels } from '../api'
 
 const EMPTY = { name: '', contact: '', specialty: '', note: '' }
 
 export default function Designers() {
   const [designers, setDesigners] = useState([])
   const [assignments, setAssignments] = useState([])
+  const [labels, setLabels] = useState([])
+  const [designerLabels, setDesignerLabelsState] = useState([])
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState(EMPTY)
+  const [selectedLabels, setSelectedLabels] = useState([])
   const [editId, setEditId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -19,37 +22,52 @@ export default function Designers() {
     const data = await getAll()
     setDesigners(data.designers || [])
     setAssignments(data.assignments || [])
+    setLabels(data.labels || [])
+    setDesignerLabelsState(data.designerLabels || [])
     setLoading(false)
   }
 
-  function openAdd() { setForm(EMPTY); setEditId(null); setModal(true) }
+  function openAdd() { setForm(EMPTY); setSelectedLabels([]); setEditId(null); setModal(true) }
   function openEdit(d) {
     setForm({ name: d.name, contact: d.contact || '', specialty: d.specialty || '', note: d.note || '' })
+    const myLabels = designerLabels.filter(dl => dl.designer_id === d.id).map(dl => dl.label_id)
+    setSelectedLabels(myLabels)
     setEditId(d.id); setModal(true)
   }
 
   async function save() {
     if (!form.name.trim()) return
     setSaving(true)
+    let id = editId
     if (editId) await updateDesigner({ id: editId, ...form })
-    else await addDesigner(form)
-    setSaving(false)
-    setModal(false)
-    load()
+    else {
+      const result = await addDesigner(form)
+      id = result.id
+    }
+    await setDesignerLabels(id, selectedLabels)
+    setSaving(false); setModal(false); load()
   }
 
   async function remove(id) {
     const count = assignments.filter(a => String(a.designer_id) === String(id)).length
     const msg = count > 0 ? `이 디자이너의 배정 ${count}건도 함께 삭제됩니다. 계속할까요?` : '삭제할까요?'
     if (!confirm(msg)) return
-    await deleteDesigner(id)
-    load()
+    await deleteDesigner(id); load()
   }
 
   const countFor = (id) => ({
     total:  assignments.filter(a => String(a.designer_id) === String(id)).length,
     active: assignments.filter(a => String(a.designer_id) === String(id) && a.status !== 'completed').length,
   })
+
+  const getDesignerLabelObjs = (id) => {
+    const labelIds = designerLabels.filter(dl => dl.designer_id === id).map(dl => dl.label_id)
+    return labels.filter(l => labelIds.includes(l.id))
+  }
+
+  function toggleLabel(id) {
+    setSelectedLabels(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id])
+  }
 
   if (loading) return <div style={{ textAlign: 'center', padding: 60, color: 'var(--text2)' }}>불러오는 중...</div>
 
@@ -70,6 +88,7 @@ export default function Designers() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
           {designers.map(d => {
             const { total, active } = countFor(d.id)
+            const labelObjs = getDesignerLabelObjs(d.id)
             return (
               <div key={d.id} className="card" style={{ padding: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
@@ -84,6 +103,13 @@ export default function Designers() {
                 <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>{d.name}</div>
                 {d.specialty && <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 500, marginBottom: 4 }}>{d.specialty}</div>}
                 {d.contact && <div style={{ fontSize: 13, color: 'var(--text2)' }}>📞 {d.contact}</div>}
+                {labelObjs.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+                    {labelObjs.map(l => (
+                      <span key={l.id} style={{ background: l.color + '22', color: l.color, padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{l.name}</span>
+                    ))}
+                  </div>
+                )}
                 {d.note && <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>{d.note}</div>}
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text2)' }}>
                   <span>전체 {total}건</span>
@@ -109,6 +135,25 @@ export default function Designers() {
                 <input value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} />
               </div>
             ))}
+            {labels.length > 0 && (
+              <div className="fg">
+                <label>라벨</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {labels.map(l => {
+                    const on = selectedLabels.includes(l.id)
+                    return (
+                      <div key={l.id} onClick={() => toggleLabel(l.id)}
+                        style={{ padding: '5px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                          background: on ? l.color : l.color + '22',
+                          color: on ? 'white' : l.color,
+                          border: `2px solid ${l.color}` }}>
+                        {l.name}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             <div className="fg">
               <label>메모</label>
               <textarea value={form.note} onChange={e => setForm(p => ({ ...p, note: e.target.value }))} placeholder="참고사항" />
