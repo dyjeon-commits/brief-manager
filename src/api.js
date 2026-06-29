@@ -14,11 +14,14 @@ export async function getAll(pmId = null, isSuperadmin = false) {
     topicsQ = topicsQ.eq('pm_id', pmId)
   }
 
+  let labelsQ = supabase.from('labels').select('*').order('name')
+  if (!isSuperadmin && pmId) labelsQ = labelsQ.eq('pm_id', pmId)
+
   const [{ data: designers }, { data: topics }, { data: assignments }, { data: labels }, { data: designerLabels }, { data: topicLabels }] = await Promise.all([
     designersQ,
     topicsQ,
     supabase.from('assignments').select('*').order('created_at'),
-    supabase.from('labels').select('*').order('name'),
+    labelsQ,
     supabase.from('designer_labels').select('*'),
     supabase.from('topic_labels').select('*'),
   ])
@@ -96,8 +99,8 @@ export async function getLabels() {
   const { data } = await supabase.from('labels').select('*').order('name')
   return data || []
 }
-export async function addLabel(name, color) {
-  const { data } = await supabase.from('labels').insert({ name, color }).select().single()
+export async function addLabel(name, color, pmId) {
+  const { data } = await supabase.from('labels').insert({ name, color, pm_id: pmId }).select().single()
   return data
 }
 export async function updateLabel(id, name, color) {

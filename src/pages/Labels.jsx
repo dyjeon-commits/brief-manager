@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { getAll, addLabel, updateLabel, deleteLabel } from '../api'
+import { useAuth } from '../AuthContext'
 
 const COLORS = ['#6366f1','#3b82f6','#22c55e','#f59e0b','#ef4444','#ec4899','#8b5cf6','#14b8a6','#f97316','#64748b']
 
 export default function Labels() {
+  const { profile } = useAuth()
+  const isSuperadmin = profile?.role === 'superadmin'
   const [labels, setLabels] = useState([])
   const [designerLabels, setDesignerLabels] = useState([])
   const [designers, setDesigners] = useState([])
@@ -13,11 +16,11 @@ export default function Labels() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [profile])
 
   async function load() {
     setLoading(true)
-    const data = await getAll()
+    const data = await getAll(profile?.id, isSuperadmin)
     setLabels(data.labels || [])
     setDesignerLabels(data.designerLabels || [])
     setDesigners(data.designers || [])
@@ -31,7 +34,7 @@ export default function Labels() {
     if (!form.name.trim()) return
     setSaving(true)
     if (editId) await updateLabel(editId, form.name.trim(), form.color)
-    else await addLabel(form.name.trim(), form.color)
+    else await addLabel(form.name.trim(), form.color, profile?.id)
     setSaving(false); setModal(false); load()
   }
 
