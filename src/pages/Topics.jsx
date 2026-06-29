@@ -75,6 +75,49 @@ export default function Topics() {
     setSelectedLabels(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id])
   }
 
+  const [csvModal, setCsvModal] = useState(false)
+  const [csvPreview, setCsvPreview] = useState([])
+  const [csvImporting, setCsvImporting] = useState(false)
+
+  function handleCsvFile(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const text = ev.target.result
+      const rows = text.split('\n').map(r => {
+        // CSV 파싱 (따옴표 처리)
+        const cols = []
+        let cur = '', inQ = false
+        for (let i = 0; i < r.length; i++) {
+          if (r[i] === '"') { inQ = !inQ }
+          else if (r[i] === ',' && !inQ) { cols.push(cur.trim()); cur = '' }
+          else cur += r[i]
+        }
+        cols.push(cur.trim())
+        return cols
+      })
+      // 헤더 제외, F(5), T(19), D(3) 컬럼
+      const preview = rows.slice(1).filter(r => r[5]?.trim()).map(r => ({
+        name: r[5]?.replace(/^"|"$/g, '').trim() || '',
+        briefUrl: r[19]?.replace(/^"|"$/g, '').trim() || '',
+        pages: r[3]?.replace(/^"|"$/g, '').trim() || '',
+      })).filter(r => r.name)
+      setCsvPreview(preview)
+      setCsvModal(true)
+    }
+    reader.readAsText(file, 'UTF-8')
+    e.target.value = ''
+  }
+
+  async function importCsv() {
+    setCsvImporting(true)
+    for (const row of csvPreview) {
+      await addTopic(row, profile?.id)
+    }
+    setCsvImporting(false); setCsvModal(false); setCsvPreview([]); load()
+  }
+
   const thStyle = { textAlign: 'left', padding: '10px 16px', fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.04em', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }
   const tdStyle = { padding: '12px 16px', borderBottom: '1px solid var(--border)' }
 
@@ -84,7 +127,13 @@ export default function Topics() {
     <div>
       <div className="ph">
         <h1>작업주제 관리</h1>
-        <button className="btn btn-primary" onClick={openAdd}>+ 주제 추가</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <label style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: 'var(--text)' }}>
+            📂 CSV 가져오기
+            <input type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvFile} />
+          </label>
+          <button className="btn btn-primary" onClick={openAdd}>+ 주제 추가</button>
+        </div>
       </div>
       <p style={{ color: 'var(--text2)', fontSize: 13, marginBottom: 20 }}>
         주제를 미리 등록해두면 배정 시 기획서 링크·마감일·페이지 수가 자동으로 채워집니다.
@@ -138,6 +187,43 @@ export default function Topics() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {csvModal && (
+        <div className="overlay" onClick={() => setCsvModal(false)}>
+          <div className="modal" style={{ width: 600 }} onClick={e => e.stopPropagation()}>
+            <h2>CSV 가져오기 미리보기</h2>
+            <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 12 }}>총 <strong>{csvPreview.length}개</strong> 주제가 인식됐어요. 확인 후 가져오기 하세요.</p>
+            <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 360, overflowY: 'auto', marginBottom: 16 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr>
+                    {['주제명 (F열)', '기획서 링크 (T열)', '페이지 (D열)'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid var(--border)', background: '#f8fafc', fontSize: 11, fontWeight: 600, color: 'var(--text2)' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {csvPreview.map((r, i) => (
+                    <tr key={i}>
+                      <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', fontWeight: 600 }}>{r.name}</td>
+                      <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {r.briefUrl ? <span style={{ color: 'var(--accent)' }}>링크 있음</span> : <span style={{ color: 'var(--text2)' }}>-</span>}
+                      </td>
+                      <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{r.pages ? `${r.pages}p` : '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="ma">
+              <button className="btn btn-ghost" onClick={() => setCsvModal(false)}>취소</button>
+              <button className="btn btn-primary" onClick={importCsv} disabled={csvImporting}>
+                {csvImporting ? '가져오는 중...' : `${csvPreview.length}개 가져오기`}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
