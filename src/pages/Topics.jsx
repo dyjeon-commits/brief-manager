@@ -103,6 +103,7 @@ export default function Topics() {
         name: r[5]?.replace(/^"|"$/g, '').trim() || '',
         briefUrl: r[19]?.replace(/^"|"$/g, '').trim() || '',
         pages: r[3]?.replace(/^"|"$/g, '').trim() || '',
+        type: '프레젠테이션(1920x1080)',
       })).filter(r => r.name)
       setCsvPreview(preview)
       setCsvSelected(preview.map((_, i) => i))
