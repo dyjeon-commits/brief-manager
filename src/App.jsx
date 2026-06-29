@@ -46,7 +46,7 @@ function AppInner() {
         <div style={{ marginTop: 'auto', padding: '16px', borderTop: '1px solid var(--border)' }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>{profile.name}</div>
           <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 10 }}>
-            {isSuperadmin ? '슈퍼어드민' : 'PM'}
+            {isSuperadmin ? '슈퍼어드민' : '디렉터'}
           </div>
           <button className="btn btn-ghost" style={{ fontSize: 12, padding: '5px 10px', width: '100%' }} onClick={signOut}>
             로그아웃

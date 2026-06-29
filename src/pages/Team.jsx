@@ -42,7 +42,7 @@ export default function Team() {
         <button className="btn btn-primary" onClick={() => { setModal(true); setError('') }}>+ 계정 추가</button>
       </div>
       <div style={{ background: '#eff6ff', border: '1.5px solid #bfdbfe', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#1d4ed8' }}>
-        💡 PM 계정 추가 순서: <strong>Supabase → Authentication → Users → Create new user</strong> 로 계정 만든 후, 여기서 이름과 UID를 등록하세요.
+        💡 디렉터 계정 추가 순서: <strong>Supabase → Authentication → Users → Create new user</strong> 로 계정 만든 후, 여기서 이름과 UID를 등록하세요.
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))', gap: 16 }}>
@@ -59,7 +59,7 @@ export default function Team() {
             <div style={{ fontWeight: 700, fontSize: 16 }}>{m.name}</div>
             <div style={{ marginTop: 6 }}>
               <span style={{ background: m.role === 'superadmin' ? '#fef3c7' : 'var(--accent-bg)', color: m.role === 'superadmin' ? '#d97706' : 'var(--accent)', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
-                {m.role === 'superadmin' ? '슈퍼어드민' : 'PM'}
+                {m.role === 'superadmin' ? '슈퍼어드민' : '디렉터'}
               </span>
             </div>
           </div>
@@ -69,7 +69,7 @@ export default function Team() {
       {modal && (
         <div className="overlay" onClick={() => setModal(false)}>
           <div className="modal" style={{ width: 440 }} onClick={e => e.stopPropagation()}>
-            <h2>PM 계정 등록</h2>
+            <h2>디렉터 계정 등록</h2>
             <div style={{ background: '#f8fafc', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', marginBottom: 16, fontSize: 13, color: 'var(--text2)', lineHeight: 1.6 }}>
               <strong style={{ color: 'var(--text)' }}>순서:</strong><br/>
               1. Supabase → Authentication → Users → Create new user<br/>
@@ -81,7 +81,7 @@ export default function Team() {
             <div className="fg">
               <label>역할</label>
               <select value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
-                <option value="pm">PM</option>
+                <option value="pm">디렉터</option>
                 <option value="superadmin">슈퍼어드민</option>
               </select>
             </div>
