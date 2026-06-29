@@ -23,6 +23,7 @@ export default function Topics() {
   const [editId, setEditId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [checkedIds, setCheckedIds] = useState([])
 
   useEffect(() => { load() }, [profile])
 
@@ -62,6 +63,23 @@ export default function Topics() {
     const msg = count > 0 ? `이 주제는 ${count}개의 배정이 있습니다. 삭제하면 배정도 모두 삭제됩니다. 계속할까요?` : '삭제할까요?'
     if (!confirm(msg)) return
     await deleteTopic(id); load()
+  }
+
+  async function removeChecked() {
+    const totalAssignments = checkedIds.reduce((acc, id) => acc + assignments.filter(a => String(a.topic_id) === String(id)).length, 0)
+    const msg = totalAssignments > 0
+      ? `선택한 ${checkedIds.length}개 주제 (배정 ${totalAssignments}건 포함)를 삭제할까요?`
+      : `선택한 ${checkedIds.length}개 주제를 삭제할까요?`
+    if (!confirm(msg)) return
+    for (const id of checkedIds) await deleteTopic(id)
+    setCheckedIds([]); load()
+  }
+
+  function toggleCheck(id) {
+    setCheckedIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id])
+  }
+  function toggleAll() {
+    setCheckedIds(checkedIds.length === topics.length ? [] : topics.map(t => t.id))
   }
 
   const countFor = id => assignments.filter(a => String(a.topic_id) === String(id)).length
@@ -131,6 +149,11 @@ export default function Topics() {
       <div className="ph">
         <h1>작업주제 관리</h1>
         <div style={{ display: 'flex', gap: 8 }}>
+          {checkedIds.length > 0 && (
+            <button className="btn btn-danger" onClick={removeChecked}>
+              🗑 {checkedIds.length}개 삭제
+            </button>
+          )}
           <label style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: 'var(--text)' }}>
             📂 CSV 가져오기
             <input type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvFile} />
@@ -152,13 +175,22 @@ export default function Topics() {
         <div className="card" style={{ overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr>{['주제명', '라벨', '타입', '기획서 링크', '마감일', '총 페이지', '배정 수', ''].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
+              <tr>
+                <th style={{ ...thStyle, width: 40, textAlign: 'center' }}>
+                  <input type="checkbox" checked={topics.length > 0 && checkedIds.length === topics.length} onChange={toggleAll} style={{ cursor: 'pointer', width: 15, height: 15 }} />
+                </th>
+                {['주제명', '라벨', '타입', '기획서 링크', '마감일', '총 페이지', '배정 수', ''].map(h => <th key={h} style={thStyle}>{h}</th>)}
+              </tr>
             </thead>
             <tbody>
               {topics.map(t => {
                 const labelObjs = getTopicLabelObjs(t.id)
+                const isChecked = checkedIds.includes(t.id)
                 return (
-                  <tr key={t.id}>
+                  <tr key={t.id} style={{ background: isChecked ? 'var(--accent-bg)' : undefined }}>
+                    <td style={{ ...tdStyle, textAlign: 'center' }}>
+                      <input type="checkbox" checked={isChecked} onChange={() => toggleCheck(t.id)} style={{ cursor: 'pointer', width: 15, height: 15 }} />
+                    </td>
                     <td style={{ ...tdStyle, fontWeight: 600 }}>{t.name}</td>
                     <td style={tdStyle}>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
