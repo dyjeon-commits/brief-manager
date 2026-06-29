@@ -5,7 +5,7 @@ export default function Team() {
   const { supabase } = useAuth()
   const [members, setMembers] = useState([])
   const [modal, setModal] = useState(false)
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'pm' })
+  const [form, setForm] = useState({ name: '', uid: '', role: 'pm' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -20,19 +20,11 @@ export default function Team() {
   }
 
   async function save() {
-    if (!form.name.trim() || !form.email.trim() || !form.password.trim()) return
+    if (!form.name.trim() || !form.uid.trim()) return
     setSaving(true); setError('')
-    const { data, error: signUpError } = await supabase.auth.admin.createUser({
-      email: form.email,
-      password: form.password,
-      email_confirm: true,
-    })
-    if (signUpError) {
-      setError('계정 생성 실패: ' + signUpError.message)
-      setSaving(false); return
-    }
-    await supabase.from('profiles').insert({ id: data.user.id, name: form.name, role: form.role })
-    setSaving(false); setModal(false); setForm({ name: '', email: '', password: '', role: 'pm' }); load()
+    const { error: err } = await supabase.from('profiles').insert({ id: form.uid.trim(), name: form.name.trim(), role: form.role })
+    if (err) { setError('UID가 올바르지 않거나 이미 등록된 계정입니다.'); setSaving(false); return }
+    setSaving(false); setModal(false); setForm({ name: '', uid: '', role: 'pm' }); load()
   }
 
   async function remove(id) {
@@ -49,7 +41,9 @@ export default function Team() {
         <h1>팀 관리</h1>
         <button className="btn btn-primary" onClick={() => { setModal(true); setError('') }}>+ 계정 추가</button>
       </div>
-      <p style={{ color: 'var(--text2)', fontSize: 13, marginBottom: 20 }}>PM 계정을 추가하면 본인이 담당한 외주/주제만 관리할 수 있어요.</p>
+      <div style={{ background: '#eff6ff', border: '1.5px solid #bfdbfe', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#1d4ed8' }}>
+        💡 PM 계정 추가 순서: <strong>Supabase → Authentication → Users → Create new user</strong> 로 계정 만든 후, 여기서 이름과 UID를 등록하세요.
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))', gap: 16 }}>
         {members.map(m => (
@@ -74,11 +68,16 @@ export default function Team() {
 
       {modal && (
         <div className="overlay" onClick={() => setModal(false)}>
-          <div className="modal" style={{ width: 400 }} onClick={e => e.stopPropagation()}>
-            <h2>계정 추가</h2>
+          <div className="modal" style={{ width: 440 }} onClick={e => e.stopPropagation()}>
+            <h2>PM 계정 등록</h2>
+            <div style={{ background: '#f8fafc', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', marginBottom: 16, fontSize: 13, color: 'var(--text2)', lineHeight: 1.6 }}>
+              <strong style={{ color: 'var(--text)' }}>순서:</strong><br/>
+              1. Supabase → Authentication → Users → Create new user<br/>
+              2. 이메일 + 비밀번호 입력 후 생성<br/>
+              3. 생성된 유저의 <strong style={{ color: 'var(--text)' }}>UID</strong>를 복사해서 아래에 붙여넣기
+            </div>
             <div className="fg"><label>이름 *</label><input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="홍길동" /></div>
-            <div className="fg"><label>이메일 *</label><input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="pm@company.com" /></div>
-            <div className="fg"><label>비밀번호 *</label><input type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="6자 이상" /></div>
+            <div className="fg"><label>UID * (Supabase에서 복사)</label><input value={form.uid} onChange={e => setForm(p => ({ ...p, uid: e.target.value }))} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" style={{ fontFamily: 'monospace', fontSize: 12 }} /></div>
             <div className="fg">
               <label>역할</label>
               <select value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
