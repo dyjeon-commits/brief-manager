@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { getAll, addAssignment, deleteAssignment, updateAssignmentStatus } from '../api'
 import { useAuth } from '../AuthContext'
 
-const STATUS_OPTIONS = [
-  { value: 'assigned',   label: '배정됨' },
-  { value: 'inprogress', label: '작업중' },
-  { value: 'completed',  label: '완료' },
+const STATUS_COLUMNS = [
+  { value: 'not_submitted', label: '제출 안함', color: '#94a3b8', bg: '#f1f5f9' },
+  { value: 'inprogress',    label: '진행 중',   color: '#3b82f6', bg: '#eff6ff' },
+  { value: 'revision1',     label: '1차 수정',  color: '#f59e0b', bg: '#fffbeb' },
+  { value: 'revising',      label: '수정 중',   color: '#8b5cf6', bg: '#f5f3ff' },
+  { value: 'completed',     label: '완료',      color: '#10b981', bg: '#f0fdf4' },
 ]
+
+const STATUS_MAP = Object.fromEntries(STATUS_COLUMNS.map(s => [s.value, s]))
 
 export default function Assignments() {
   const { profile } = useAuth()
@@ -21,13 +25,14 @@ export default function Assignments() {
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState({ designerId: '', topicIds: [] })
   const [filterDesigner, setFilterDesigner] = useState('all')
-  const [filterStatus, setFilterStatus] = useState('all')
   const [showAutoModal, setShowAutoModal] = useState(false)
   const [autoSuggestions, setAutoSuggestions] = useState([])
   const [selectedAuto, setSelectedAuto] = useState([])
   const [autoTopicId, setAutoTopicId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [viewMode, setViewMode] = useState('board') // 'table' | 'board'
+  const dragId = useRef(null)
 
   useEffect(() => { load() }, [profile])
 
@@ -97,7 +102,6 @@ export default function Assignments() {
 
   const filtered = assignments.filter(a => {
     if (filterDesigner !== 'all' && String(a.designer_id) !== String(filterDesigner)) return false
-    if (filterStatus !== 'all' && a.status !== filterStatus) return false
     return true
   })
 
@@ -113,6 +117,27 @@ export default function Assignments() {
 
   const autoTopics = topics.filter(t => getAutoSuggestedDesigners(t.id).length > 0)
 
+  // drag and drop
+  function onDragStart(e, assignmentId) {
+    dragId.current = assignmentId
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  function onDragOver(e) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  async function onDrop(e, newStatus) {
+    e.preventDefault()
+    if (!dragId.current) return
+    const id = dragId.current
+    dragId.current = null
+    // optimistic update
+    setAssignments(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a))
+    await updateAssignmentStatus(id, newStatus)
+  }
+
   const tdStyle = { padding: '11px 16px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle', fontSize: 13 }
   const thStyle = { textAlign: 'left', padding: '10px 16px', fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.04em', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }
 
@@ -122,7 +147,20 @@ export default function Assignments() {
     <div>
       <div className="ph">
         <h1>배정 현황</h1>
-        <button className="btn btn-primary" onClick={() => { setForm({ designerId: '', topicIds: [] }); setModal(true) }}>+ 배정 추가</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {/* 표/보드 토글 */}
+          <div style={{ display: 'flex', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+            {[{ id: 'table', icon: '☰', label: '표' }, { id: 'board', icon: '⊞', label: '보드' }].map(v => (
+              <button key={v.id} onClick={() => setViewMode(v.id)}
+                style={{ padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none',
+                  background: viewMode === v.id ? 'var(--accent)' : 'transparent',
+                  color: viewMode === v.id ? 'white' : 'var(--text2)' }}>
+                {v.icon} {v.label}
+              </button>
+            ))}
+          </div>
+          <button className="btn btn-primary" onClick={() => { setForm({ designerId: '', topicIds: [] }); setModal(true) }}>+ 배정 추가</button>
+        </div>
       </div>
 
       {autoTopics.length > 0 && (
@@ -142,23 +180,13 @@ export default function Assignments() {
         </div>
       )}
 
+      {/* 디자이너 필터 */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
         <select style={{ padding: '7px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--surface)', fontSize: 13 }}
           value={filterDesigner} onChange={e => setFilterDesigner(e.target.value)}>
           <option value="all">전체 디자이너</option>
           {designers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {[{ value: 'all', label: '전체' }, ...STATUS_OPTIONS].map(s => (
-            <button key={s.value} onClick={() => setFilterStatus(s.value)}
-              style={{ padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer',
-                background: filterStatus === s.value ? 'var(--accent-bg)' : 'transparent',
-                color: filterStatus === s.value ? 'var(--accent)' : 'var(--text2)',
-                border: filterStatus === s.value ? '1.5px solid var(--accent)' : '1.5px solid transparent' }}>
-              {s.label}
-            </button>
-          ))}
-        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -169,7 +197,70 @@ export default function Assignments() {
             ? <p style={{ fontSize: 13 }}>먼저 작업주제를 등록해주세요.</p>
             : <button className="btn btn-primary" onClick={() => { setForm({ designerId: '', topicIds: [] }); setModal(true) }}>배정 추가하기</button>}
         </div>
+      ) : viewMode === 'board' ? (
+        /* ── 보드 뷰 ── */
+        <div style={{ display: 'flex', gap: 14, overflowX: 'auto', alignItems: 'flex-start', paddingBottom: 16 }}>
+          {STATUS_COLUMNS.map(col => {
+            const cards = filtered.filter(a => (a.status || 'not_submitted') === col.value)
+            return (
+              <div key={col.value}
+                onDragOver={onDragOver}
+                onDrop={e => onDrop(e, col.value)}
+                style={{ minWidth: 240, width: 240, flexShrink: 0, background: col.bg, borderRadius: 12, padding: '14px 12px', minHeight: 200 }}>
+                {/* 컬럼 헤더 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: col.color, display: 'inline-block' }} />
+                  <span style={{ fontWeight: 700, fontSize: 13, color: col.color }}>{col.label}</span>
+                  <span style={{ marginLeft: 'auto', background: col.color + '33', color: col.color, borderRadius: 20, padding: '1px 9px', fontSize: 12, fontWeight: 700 }}>{cards.length}</span>
+                </div>
+                {/* 카드 목록 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {cards.map(a => {
+                    const t = topicMap[String(a.topic_id)]
+                    const d = designerMap[String(a.designer_id)]
+                    const overdue = isOverdue(a)
+                    return (
+                      <div key={a.id}
+                        draggable
+                        onDragStart={e => onDragStart(e, a.id)}
+                        style={{ background: 'white', borderRadius: 10, padding: '12px 13px', cursor: 'grab', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', border: overdue ? '1.5px solid #fca5a5' : '1.5px solid transparent', userSelect: 'none' }}>
+                        {/* 디자이너 */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>
+                            {d?.name?.[0] || '?'}
+                          </div>
+                          <span style={{ fontWeight: 700, fontSize: 14 }}>{d?.name || '?'}</span>
+                          {overdue && <span style={{ marginLeft: 'auto', fontSize: 10, background: '#fee2e2', color: '#dc2626', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>마감초과</span>}
+                        </div>
+                        {/* 주제명 */}
+                        <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 6, lineHeight: 1.4 }}>{t?.name || '-'}</div>
+                        {/* 메타 */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+                          {t?.deadline && <span style={{ fontSize: 11, color: overdue ? '#dc2626' : 'var(--text2)' }}>📅 {t.deadline}</span>}
+                          {t?.pages && <span style={{ fontSize: 11, color: 'var(--text2)' }}>· {t.pages}p</span>}
+                        </div>
+                        {t?.brief_url && (
+                          <a href={t.brief_url} target="_blank" rel="noreferrer"
+                            style={{ display: 'inline-block', marginTop: 8, fontSize: 11, color: 'var(--accent)', textDecoration: 'underline' }}
+                            onClick={e => e.stopPropagation()}>
+                            기획서 열기 →
+                          </a>
+                        )}
+                        {/* 삭제 */}
+                        <button onClick={async () => { if (confirm('배정을 삭제할까요?')) { await deleteAssignment(a.id); load() } }}
+                          style={{ display: 'block', marginTop: 10, width: '100%', padding: '4px', fontSize: 11, color: '#dc2626', background: '#fff5f5', border: '1px solid #fca5a5', borderRadius: 6, cursor: 'pointer' }}>
+                          삭제
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       ) : (
+        /* ── 표 뷰 ── */
         <div className="card" style={{ overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -180,6 +271,7 @@ export default function Assignments() {
                 const t = topicMap[String(a.topic_id)]
                 const d = designerMap[String(a.designer_id)]
                 const overdue = isOverdue(a)
+                const statusInfo = STATUS_MAP[a.status] || STATUS_MAP['not_submitted']
                 return (
                   <tr key={a.id} style={{ background: overdue ? '#fff5f5' : undefined }}>
                     <td style={tdStyle}>
@@ -206,9 +298,9 @@ export default function Assignments() {
                     </td>
                     <td style={tdStyle}>{t?.pages ? `${t.pages}p` : '-'}</td>
                     <td style={tdStyle}>
-                      <select style={{ padding: '5px 8px', border: '1.5px solid var(--border)', borderRadius: 7, background: 'var(--surface)', fontSize: 12, cursor: 'pointer' }}
-                        value={a.status} onChange={async e => { await updateAssignmentStatus(a.id, e.target.value); load() }}>
-                        {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                      <select style={{ padding: '5px 8px', border: `1.5px solid ${statusInfo.color}`, borderRadius: 7, background: statusInfo.bg, fontSize: 12, cursor: 'pointer', color: statusInfo.color, fontWeight: 600 }}
+                        value={a.status || 'not_submitted'} onChange={async e => { await updateAssignmentStatus(a.id, e.target.value); load() }}>
+                        {STATUS_COLUMNS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                       </select>
                     </td>
                     <td style={tdStyle}>
