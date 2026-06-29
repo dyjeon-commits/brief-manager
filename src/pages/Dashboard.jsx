@@ -1,5 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react'
 
+function RenderContent({ text }) {
+  const parts = text.split(/(\[([^\]]+)\]\((https?:\/\/[^)]+)\))/g)
+  const result = []
+  let i = 0
+  while (i < parts.length) {
+    if (/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/.test(parts[i])) {
+      const m = parts[i].match(/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/)
+      result.push(<a key={i} href={m[2]} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', fontWeight: 600, textDecoration: 'underline' }}>{m[1]}</a>)
+      i += 3
+    } else {
+      if (parts[i]) result.push(parts[i])
+      i++
+    }
+  }
+  return <>{result}</>
+}
+
 function NoticeAccordion({ n, onEdit, onDelete }) {
   const [open, setOpen] = useState(false)
   return (
@@ -17,7 +34,7 @@ function NoticeAccordion({ n, onEdit, onDelete }) {
       </div>
       {open && n.content && (
         <div style={{ padding: '0 16px 14px', fontSize: 13, color: 'var(--text2)', whiteSpace: 'pre-wrap', lineHeight: 1.6, borderTop: '1px solid var(--border)' }}>
-          <div style={{ paddingTop: 10 }}>{n.content}</div>
+          <div style={{ paddingTop: 10 }}><RenderContent text={n.content} /></div>
         </div>
       )}
     </div>
@@ -33,6 +50,9 @@ export default function Dashboard({ onNavigate }) {
   const [loading, setLoading] = useState(true)
   const [noticeModal, setNoticeModal] = useState(false)
   const [noticeForm, setNoticeForm] = useState({ title: '', content: '' })
+  const [linkForm, setLinkForm] = useState({ text: '', url: '' })
+  const [showLinkForm, setShowLinkForm] = useState(false)
+  const contentRef = React.useRef(null)
   const [editNoticeId, setEditNoticeId] = useState(null)
   const [savingNotice, setSavingNotice] = useState(false)
 
@@ -65,14 +85,29 @@ export default function Dashboard({ onNavigate }) {
 
   function openAddNotice() {
     setNoticeForm({ title: '', content: '' })
-    setEditNoticeId(null)
+    setEditNoticeId(null); setShowLinkForm(false); setLinkForm({ text: '', url: '' })
     setNoticeModal(true)
   }
 
   function openEditNotice(n) {
     setNoticeForm({ title: n.title, content: n.content || '' })
-    setEditNoticeId(n.id)
+    setEditNoticeId(n.id); setShowLinkForm(false); setLinkForm({ text: '', url: '' })
     setNoticeModal(true)
+  }
+
+  function insertLink() {
+    if (!linkForm.text.trim() || !linkForm.url.trim()) return
+    const tag = `[${linkForm.text.trim()}](${linkForm.url.trim()})`
+    const el = contentRef.current
+    if (el) {
+      const start = el.selectionStart
+      const before = noticeForm.content.slice(0, start)
+      const after = noticeForm.content.slice(start)
+      setNoticeForm(p => ({ ...p, content: before + tag + after }))
+    } else {
+      setNoticeForm(p => ({ ...p, content: p.content + (p.content ? '\n' : '') + tag }))
+    }
+    setLinkForm({ text: '', url: '' }); setShowLinkForm(false)
   }
 
   async function removeNotice(id) {
@@ -207,8 +242,33 @@ export default function Dashboard({ onNavigate }) {
                 placeholder="예: 작업 가이드, 제출 양식 안내" />
             </div>
             <div className="fg">
-              <label>내용</label>
-              <textarea value={noticeForm.content} onChange={e => setNoticeForm(p => ({ ...p, content: e.target.value }))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label style={{ margin: 0 }}>내용</label>
+                <button type="button" onClick={() => setShowLinkForm(p => !p)}
+                  style={{ fontSize: 12, padding: '3px 10px', background: 'var(--accent-bg)', color: 'var(--accent)', border: '1.5px solid var(--accent)', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>
+                  🔗 링크 삽입
+                </button>
+              </div>
+              {showLinkForm && (
+                <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '12px', marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <input value={linkForm.text} onChange={e => setLinkForm(p => ({ ...p, text: e.target.value }))}
+                    placeholder="표시할 텍스트 (예: 작업 가이드 바로가기)" style={{ padding: '7px 10px', border: '1.5px solid var(--border)', borderRadius: 6, fontSize: 13 }} />
+                  <input value={linkForm.url} onChange={e => setLinkForm(p => ({ ...p, url: e.target.value }))}
+                    placeholder="URL (예: https://...)" style={{ padding: '7px 10px', border: '1.5px solid var(--border)', borderRadius: 6, fontSize: 13 }} />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button type="button" onClick={insertLink}
+                      disabled={!linkForm.text.trim() || !linkForm.url.trim()}
+                      style={{ flex: 1, padding: '6px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: (!linkForm.text.trim() || !linkForm.url.trim()) ? 0.5 : 1 }}>
+                      삽입
+                    </button>
+                    <button type="button" onClick={() => setShowLinkForm(false)}
+                      style={{ padding: '6px 12px', background: 'transparent', border: '1.5px solid var(--border)', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}>
+                      취소
+                    </button>
+                  </div>
+                </div>
+              )}
+              <textarea ref={contentRef} value={noticeForm.content} onChange={e => setNoticeForm(p => ({ ...p, content: e.target.value }))}
                 placeholder="외주 디자이너에게 전달할 내용을 입력하세요." rows={5} />
             </div>
             <div className="ma">

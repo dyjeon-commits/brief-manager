@@ -140,6 +140,28 @@ export default function DesignerView({ token }) {
   )
 }
 
+function RenderNoticeContent({ text }) {
+  const parts = text.split(/(\[([^\]]+)\]\((https?:\/\/[^)]+)\))/g)
+  const result = []
+  let i = 0
+  while (i < parts.length) {
+    if (/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/.test(parts[i])) {
+      const m = parts[i].match(/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/)
+      result.push(<a key={i} href={m[2]} target="_blank" rel="noreferrer" style={{ color: '#b45309', fontWeight: 600, textDecoration: 'underline' }}>{m[1]}</a>)
+      i += 3
+    } else {
+      // 일반 URL도 링크로
+      const subParts = (parts[i] || '').split(/(https?:\/\/[^\s]+)/g)
+      subParts.forEach((sp, j) => {
+        if (/^https?:\/\//.test(sp)) result.push(<a key={`${i}-${j}`} href={sp} target="_blank" rel="noreferrer" style={{ color: '#b45309', fontWeight: 600, textDecoration: 'underline' }}>{sp}</a>)
+        else if (sp) result.push(sp)
+      })
+      i++
+    }
+  }
+  return <>{result}</>
+}
+
 function NoticeAccordion({ n }) {
   const [open, setOpen] = useState(false)
   return (
@@ -151,13 +173,7 @@ function NoticeAccordion({ n }) {
       </div>
       {open && n.content && (
         <div style={{ padding: '0 18px 14px', fontSize: 13, color: '#78350f', whiteSpace: 'pre-wrap', lineHeight: 1.7, borderTop: '1px solid #fde68a' }}>
-          <div style={{ paddingTop: 12 }}>
-            {n.content.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
-              /^https?:\/\//.test(part)
-                ? <a key={i} href={part} target="_blank" rel="noreferrer" style={{ color: '#b45309', fontWeight: 600, textDecoration: 'underline' }}>{part}</a>
-                : part
-            )}
-          </div>
+          <div style={{ paddingTop: 12 }}><RenderNoticeContent text={n.content} /></div>
         </div>
       )}
     </div>
