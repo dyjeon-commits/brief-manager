@@ -29,7 +29,8 @@ export default function Team() {
 
   async function remove(id) {
     if (!confirm('이 계정을 삭제할까요?')) return
-    await supabase.from('profiles').delete().eq('id', id)
+    const { error } = await supabase.from('profiles').delete().eq('id', id)
+    if (error) { alert('삭제 실패: ' + error.message); return }
     load()
   }
 

@@ -107,6 +107,12 @@ export default function Designers() {
                 <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>{d.name}</div>
                 {d.specialty && <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 500, marginBottom: 4 }}>{d.specialty}</div>}
                 {d.contact && <div style={{ fontSize: 13, color: 'var(--text2)' }}>📞 {d.contact}</div>}
+                {d.token && (
+                  <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/view/${d.token}`); alert('링크가 복사되었습니다!') }}
+                    style={{ marginTop: 8, background: '#f1f5f9', border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer', color: '#475569', width: '100%', textAlign: 'left' }}>
+                    🔗 전용 링크 복사
+                  </button>
+                )}
                 {labelObjs.length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
                     {labelObjs.map(l => (

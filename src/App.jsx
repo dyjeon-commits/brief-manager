@@ -7,6 +7,7 @@ import Designers from './pages/Designers'
 import Labels from './pages/Labels'
 import Team from './pages/Team'
 import Login from './pages/Login'
+import DesignerView from './pages/DesignerView'
 import './App.css'
 
 function AppInner() {
