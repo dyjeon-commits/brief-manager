@@ -33,11 +33,12 @@ export default function DesignerView({ token }) {
     if (!d) { setNotFound(true); setLoading(false); return }
     setDesigner(d)
 
+    const pmId = d.pm_id
     const [{ data: a }, { data: n }] = await Promise.all([
       supabase.from('assignments').select('*').eq('designer_id', d.id),
-      d.pm_id
-        ? supabase.from('notices').select('*').eq('pm_id', d.pm_id).order('created_at', { ascending: false })
-        : Promise.resolve({ data: [] }),
+      pmId
+        ? supabase.from('notices').select('*').eq('pm_id', pmId).order('created_at', { ascending: false })
+        : supabase.from('notices').select('*').order('created_at', { ascending: false }),
     ])
 
     const topicIds = (a || []).map(x => x.topic_id)
