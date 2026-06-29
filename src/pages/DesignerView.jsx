@@ -103,21 +103,8 @@ export default function DesignerView({ token }) {
             <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>
               📢 공지 / 가이드
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {notices.map(n => (
-                <div key={n.id} style={{ background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: 12, padding: '16px 18px' }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: '#92400e', marginBottom: n.content ? 8 : 0 }}>{n.title}</div>
-                  {n.content && (
-                    <div style={{ fontSize: 13, color: '#78350f', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
-                      {n.content.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
-                        /^https?:\/\//.test(part)
-                          ? <a key={i} href={part} target="_blank" rel="noreferrer" style={{ color: '#b45309', fontWeight: 600, textDecoration: 'underline' }}>{part}</a>
-                          : part
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {notices.map(n => <NoticeAccordion key={n.id} n={n} />)}
             </div>
           </div>
         )}
@@ -149,6 +136,30 @@ export default function DesignerView({ token }) {
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+function NoticeAccordion({ n }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div style={{ background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: 12, overflow: 'hidden' }}>
+      <div onClick={() => setOpen(p => !p)}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', cursor: 'pointer', userSelect: 'none' }}>
+        <span style={{ fontWeight: 700, fontSize: 14, color: '#92400e' }}>{n.title}</span>
+        <span style={{ fontSize: 16, color: '#b45309', transition: 'transform 0.2s', display: 'inline-block', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
+      </div>
+      {open && n.content && (
+        <div style={{ padding: '0 18px 14px', fontSize: 13, color: '#78350f', whiteSpace: 'pre-wrap', lineHeight: 1.7, borderTop: '1px solid #fde68a' }}>
+          <div style={{ paddingTop: 12 }}>
+            {n.content.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+              /^https?:\/\//.test(part)
+                ? <a key={i} href={part} target="_blank" rel="noreferrer" style={{ color: '#b45309', fontWeight: 600, textDecoration: 'underline' }}>{part}</a>
+                : part
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
