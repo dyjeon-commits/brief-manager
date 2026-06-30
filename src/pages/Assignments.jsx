@@ -129,7 +129,7 @@ export default function Assignments() {
     const assignedTopicIds = new Set(assignments.map(a => String(a.topic_id)))
     const unassigned = topics.filter(t => !assignedTopicIds.has(String(t.id)))
 
-    // 1단계: 등급 매칭 (주제 라벨 ↔ 디자이너 라벨 교집합 있으면 전원 배정)
+    // 1단계: 등급 매칭
     const gradeRows = []
     const noMatchTopics = []
     for (const topic of unassigned) {
@@ -140,8 +140,9 @@ export default function Assignments() {
       gradeRows.push({ topic, selectedDesignerIds: matched.map(d => d.id) })
     }
 
-    // 2단계 초기값: 매칭 안된 주제들, 최소수량 기본 1
+    // 2단계: 전체 주제 최소수량 초기화
     const initMin = {}
+    gradeRows.forEach(r => { initMin[r.topic.id] = r.selectedDesignerIds.length })
     noMatchTopics.forEach(t => { initMin[t.id] = 1 })
     setMinCounts(initMin)
     setStepGrade(gradeRows)
@@ -150,25 +151,36 @@ export default function Assignments() {
   }
 
   function buildRandomStep() {
-    // 2단계에서 "다음" 누를 때 랜덤 배분 계산
-    const countMap = {} // designerId → 총 배정 수 (기존 + 1단계)
+    const countMap = {}
     designers.forEach(d => { countMap[d.id] = assignments.filter(a => String(a.designer_id) === String(d.id)).length })
-    stepGrade.forEach(row => row.selectedDesignerIds.forEach(did => { countMap[did] = (countMap[did] || 0) + 1 }))
 
-    const gradedMatchedIds = new Set(stepGrade.flatMap(r => r.selectedDesignerIds))
-    const ungradedDesigners = designers.filter(d => getDesignerLabelIds(d.id).length === 0)
-    const pool = ungradedDesigners.length > 0 ? ungradedDesigners : designers
+    // 등급매칭된 주제에 추가 랜덤 배분 (최소수량 > 현재 매칭수일 때)
+    const newGrade = stepGrade.map(row => {
+      const min = minCounts[row.topic.id] || row.selectedDesignerIds.length
+      const current = [...row.selectedDesignerIds]
+      if (min > current.length) {
+        const pool = designers.filter(d => !current.includes(d.id))
+        pool.sort((a, b) => (countMap[a.id] || 0) - (countMap[b.id] || 0))
+        const extra = Math.min(min - current.length, pool.length)
+        for (let i = 0; i < extra; i++) {
+          current.push(pool[i].id)
+          countMap[pool[i].id] = (countMap[pool[i].id] || 0) + 1
+        }
+      }
+      current.forEach(did => { countMap[did] = (countMap[did] || 0) + 1 })
+      return { ...row, selectedDesignerIds: current }
+    })
 
+    // 나머지 주제 랜덤 배분
     const newRandom = stepRandom.map(row => {
       const min = minCounts[row.topic.id] || 1
-      const picked = []
-      const sorted = [...pool].sort((a, b) => (countMap[a.id] || 0) - (countMap[b.id] || 0))
-      for (let i = 0; i < Math.min(min, sorted.length); i++) {
-        picked.push(sorted[i].id)
-        countMap[sorted[i].id] = (countMap[sorted[i].id] || 0) + 1
-      }
+      const sorted = [...designers].sort((a, b) => (countMap[a.id] || 0) - (countMap[b.id] || 0))
+      const picked = sorted.slice(0, Math.min(min, sorted.length)).map(d => d.id)
+      picked.forEach(did => { countMap[did] = (countMap[did] || 0) + 1 })
       return { ...row, selectedDesignerIds: picked }
     })
+
+    setStepGrade(newGrade)
     setStepRandom(newRandom)
     setAutoStep(3)
   }
@@ -185,13 +197,33 @@ export default function Assignments() {
     setSaving(false); setAutoStep(0); load()
   }
 
-  // 3단계: 디자이너별 배정 수 요약
+  // 3단계: all rows merged
+  const allWizardRows = () => [...stepGrade, ...stepRandom]
+
+  // 3단계: 디자이너별 요약
   const wizardSummary = () => {
     const map = {}
     designers.forEach(d => { map[d.id] = [] })
-    stepGrade.forEach(r => r.selectedDesignerIds.forEach(did => { if (map[did]) map[did].push(r.topic) }))
-    stepRandom.forEach(r => r.selectedDesignerIds.forEach(did => { if (map[did]) map[did].push(r.topic) }))
-    return designers.map(d => ({ designer: d, topics: map[d.id] || [] })).filter(x => x.topics.length > 0)
+    allWizardRows().forEach(r => r.selectedDesignerIds.forEach(did => { if (map[did]) map[did].push(r.topic) }))
+    return designers.map(d => ({ designer: d, topics: map[d.id] || [] }))
+  }
+
+  // 3단계: 주제별 요약
+  const topicWizardSummary = () => allWizardRows().map(r => ({
+    topic: r.topic,
+    designerIds: r.selectedDesignerIds,
+    isGrade: stepGrade.some(g => g.topic.id === r.topic.id),
+  }))
+
+  // 3단계: 디자이너에 주제 추가/제거
+  function toggleWizardAssign(topicId, designerId) {
+    const toggle = rows => rows.map(r => {
+      if (r.topic.id !== topicId) return r
+      const has = r.selectedDesignerIds.includes(designerId)
+      return { ...r, selectedDesignerIds: has ? r.selectedDesignerIds.filter(x => x !== designerId) : [...r.selectedDesignerIds, designerId] }
+    })
+    setStepGrade(toggle)
+    setStepRandom(toggle)
   }
 
   // drag and drop
@@ -524,80 +556,139 @@ export default function Assignments() {
               </>
             )}
 
-            {/* 2단계: 수량 설정 */}
+            {/* 2단계: 수량 설정 (전체 주제) */}
             {autoStep === 2 && (
               <>
-                <h2>2단계 — 나머지 주제 수량 설정</h2>
+                <h2>2단계 — 수량 설정</h2>
                 <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 12 }}>
-                  등급 매칭이 없는 주제에 배정할 최소 외주 수를 설정하세요. 랜덤으로 배분됩니다.
+                  주제별 최소 배정 외주 수를 설정하세요. 등급매칭 주제도 수량 초과분은 랜덤으로 추가 배분됩니다.
                 </p>
-                {stepRandom.length === 0 ? (
-                  <div style={{ padding: 24, textAlign: 'center', color: 'var(--text2)', fontSize: 13, border: '1.5px solid var(--border)', borderRadius: 8, marginBottom: 16 }}>
-                    모든 주제가 등급 매칭되었습니다.
-                  </div>
-                ) : (
-                  <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', marginBottom: 16 }}>
-                    {stepRandom.map(row => (
+                <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 360, overflowY: 'auto', marginBottom: 16 }}>
+                  {[...stepGrade, ...stepRandom].map(row => {
+                    const tLabelIds = getTopicLabelIds(row.topic.id)
+                    const tLabelObjs = labels.filter(l => tLabelIds.includes(l.id))
+                    const isGrade = stepGrade.some(g => g.topic.id === row.topic.id)
+                    const gradeCount = isGrade ? row.selectedDesignerIds.length : 0
+                    return (
                       <div key={row.topic.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600, fontSize: 14 }}>{row.topic.name}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text2)' }}>{row.topic.deadline && `마감 ${row.topic.deadline}`}{row.topic.pages && ` · ${row.topic.pages}p`}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                            <span style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.topic.name}</span>
+                            {tLabelObjs.map(l => <span key={l.id} style={{ background: l.color + '22', color: l.color, padding: '1px 6px', borderRadius: 20, fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{l.name}</span>)}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text2)' }}>
+                            {isGrade ? `등급매칭 ${gradeCount}명 포함` : '랜덤 배분'}
+                            {row.topic.deadline && ` · 마감 ${row.topic.deadline}`}
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                          <span style={{ fontSize: 13, color: 'var(--text2)' }}>최소</span>
-                          <input type="number" min={1} max={designers.length}
-                            value={minCounts[row.topic.id] || 1}
-                            onChange={e => setMinCounts(p => ({ ...p, [row.topic.id]: Math.max(1, parseInt(e.target.value) || 1) }))}
-                            style={{ width: 60, padding: '5px 8px', border: '1.5px solid var(--border)', borderRadius: 6, fontSize: 14, textAlign: 'center' }} />
-                          <span style={{ fontSize: 13, color: 'var(--text2)' }}>명</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                          <span style={{ fontSize: 12, color: 'var(--text2)' }}>최소</span>
+                          <input type="number" min={isGrade ? gradeCount : 1} max={designers.length}
+                            value={minCounts[row.topic.id] || (isGrade ? gradeCount : 1)}
+                            onChange={e => setMinCounts(p => ({ ...p, [row.topic.id]: Math.max(isGrade ? gradeCount : 1, parseInt(e.target.value) || 1) }))}
+                            style={{ width: 56, padding: '5px 8px', border: '1.5px solid var(--border)', borderRadius: 6, fontSize: 14, textAlign: 'center' }} />
+                          <span style={{ fontSize: 12, color: 'var(--text2)' }}>명</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    )
+                  })}
+                </div>
                 <div className="ma">
                   <button className="btn btn-ghost" onClick={() => setAutoStep(1)}>← 이전</button>
-                  <button className="btn btn-primary" onClick={buildRandomStep}>다음 →</button>
+                  <button className="btn btn-primary" onClick={buildRandomStep}>배분 실행 →</button>
                 </div>
               </>
             )}
 
             {/* 3단계: 최종 검토 */}
             {autoStep === 3 && (() => {
-              const summary = wizardSummary()
+              const designerSummary = wizardSummary()
+              const tSummary = topicWizardSummary()
+              const totalAssign = tSummary.reduce((s, r) => s + r.designerIds.length, 0)
               return (
                 <>
                   <h2>3단계 — 최종 검토</h2>
-                  <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 12 }}>
-                    외주별 배정 현황입니다. 주제 옆 × 를 눌러 개별 조정할 수 있어요.
-                  </p>
-                  <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 380, overflowY: 'auto', marginBottom: 16 }}>
-                    {summary.length === 0 ? (
-                      <div style={{ padding: 24, textAlign: 'center', color: 'var(--text2)', fontSize: 13 }}>배정된 내역이 없습니다.</div>
-                    ) : summary.map(({ designer: d, topics: dTopics }) => (
-                      <div key={d.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                          <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>{d.name[0]}</div>
-                          <span style={{ fontWeight: 700, fontSize: 14 }}>{d.name}</span>
-                          <span style={{ background: 'var(--accent-bg)', color: 'var(--accent)', padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700, marginLeft: 'auto' }}>{dTopics.length}건</span>
+
+                  {/* 요약 통계 */}
+                  <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+                    <div style={{ flex: 1, background: '#eff6ff', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--accent)' }}>{tSummary.length}</div>
+                      <div style={{ fontSize: 11, color: '#64748b' }}>배분 주제</div>
+                    </div>
+                    <div style={{ flex: 1, background: '#f0fdf4', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: '#16a34a' }}>{designerSummary.filter(x => x.topics.length > 0).length}</div>
+                      <div style={{ fontSize: 11, color: '#64748b' }}>참여 외주</div>
+                    </div>
+                    <div style={{ flex: 1, background: '#fefce8', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: '#ca8a04' }}>{totalAssign}</div>
+                      <div style={{ fontSize: 11, color: '#64748b' }}>총 배정 건수</div>
+                    </div>
+                    <div style={{ flex: 1, background: '#faf5ff', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: '#7c3aed' }}>
+                        {designerSummary.filter(x => x.topics.length > 0).length > 0
+                          ? (totalAssign / designerSummary.filter(x => x.topics.length > 0).length).toFixed(1) : 0}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#64748b' }}>외주 1인 평균</div>
+                    </div>
+                  </div>
+
+                  {/* 탭: 외주별 / 주제별 */}
+                  <div style={{ display: 'flex', marginBottom: 10, borderBottom: '2px solid var(--border)' }}>
+                    {['외주별 현황', '주제별 현황'].map((tab, i) => (
+                      <button key={i} onClick={() => {/* just for style, use state if needed */}}
+                        style={{ padding: '6px 16px', fontSize: 13, fontWeight: 600, border: 'none', background: 'none', cursor: 'pointer',
+                          color: i === 0 ? 'var(--accent)' : 'var(--text2)', borderBottom: i === 0 ? '2px solid var(--accent)' : 'none', marginBottom: -2 }}>
+                        {tab}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* 외주별 목록 */}
+                  <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 300, overflowY: 'auto', marginBottom: 14 }}>
+                    {designerSummary.map(({ designer: d, topics: dTopics }) => (
+                      <div key={d.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', background: dTopics.length === 0 ? '#fafafa' : 'white' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: dTopics.length > 0 ? 8 : 0 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>{d.name[0]}</div>
+                          <span style={{ fontWeight: 700, fontSize: 13 }}>{d.name}</span>
+                          <span style={{ background: dTopics.length > 0 ? 'var(--accent-bg)' : '#f1f5f9', color: dTopics.length > 0 ? 'var(--accent)' : 'var(--text2)', padding: '1px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, marginLeft: 'auto' }}>
+                            {dTopics.length}건
+                          </span>
+                          {/* 주제 추가 버튼 */}
+                          <select style={{ fontSize: 11, padding: '2px 6px', border: '1.5px dashed var(--border)', borderRadius: 6, background: 'white', cursor: 'pointer', color: 'var(--accent)' }}
+                            value="" onChange={e => { if (e.target.value) toggleWizardAssign(Number(e.target.value), d.id) }}>
+                            <option value="">+ 주제 추가</option>
+                            {allWizardRows().filter(r => !r.selectedDesignerIds.includes(d.id)).map(r => (
+                              <option key={r.topic.id} value={r.topic.id}>{r.topic.name}</option>
+                            ))}
+                          </select>
                         </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {dTopics.map(t => (
-                            <span key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#f1f5f9', borderRadius: 6, padding: '3px 8px', fontSize: 12 }}>
-                              {t.name}
-                              <button onClick={() => {
-                                setStepGrade(prev => prev.map(r => ({ ...r, selectedDesignerIds: r.topic.id === t.id ? r.selectedDesignerIds.filter(x => x !== d.id) : r.selectedDesignerIds })))
-                                setStepRandom(prev => prev.map(r => ({ ...r, selectedDesignerIds: r.topic.id === t.id ? r.selectedDesignerIds.filter(x => x !== d.id) : r.selectedDesignerIds })))
-                              }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 13, padding: 0, lineHeight: 1 }}>×</button>
-                            </span>
-                          ))}
-                        </div>
+                        {dTopics.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                            {dTopics.map(t => (
+                              <span key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#f1f5f9', borderRadius: 6, padding: '3px 8px', fontSize: 11 }}>
+                                {t.name}
+                                <button onClick={() => toggleWizardAssign(t.id, d.id)}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 13, padding: 0, lineHeight: 1 }}>×</button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
-                  <div style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--text2)' }}>
-                    총 배정 <strong style={{ color: 'var(--text)' }}>{summary.reduce((s, x) => s + x.topics.length, 0)}건</strong> · 외주 <strong style={{ color: 'var(--text)' }}>{summary.length}명</strong>
+
+                  {/* 주제별 배정 수 요약 */}
+                  <div style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 14px', marginBottom: 14, maxHeight: 120, overflowY: 'auto' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text2)', marginBottom: 6 }}>주제별 배정 수</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {tSummary.map(({ topic: t, designerIds }) => (
+                        <span key={t.id} style={{ fontSize: 11, background: 'white', border: '1px solid var(--border)', borderRadius: 6, padding: '3px 8px' }}>
+                          {t.name} <strong style={{ color: 'var(--accent)' }}>{designerIds.length}명</strong>
+                        </span>
+                      ))}
+                    </div>
                   </div>
+
                   <div className="ma">
                     <button className="btn btn-ghost" onClick={() => setAutoStep(2)}>← 이전</button>
                     <button className="btn btn-primary" onClick={confirmWizard} disabled={saving}>
