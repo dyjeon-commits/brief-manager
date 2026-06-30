@@ -272,7 +272,7 @@ export default function Assignments() {
             {[{ id: 'table', icon: '☰', label: '표' }, { id: 'board', icon: '⊞', label: '보드' }].map(v => (
               <button key={v.id} onClick={() => setViewMode(v.id)}
                 style={{ padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none',
-                  background: viewMode === v.id ? 'var(--accent)' : 'transparent',
+                  background: viewMode === v.id ? '#475569' : 'transparent',
                   color: viewMode === v.id ? 'white' : 'var(--text2)' }}>
                 {v.icon} {v.label}
               </button>
