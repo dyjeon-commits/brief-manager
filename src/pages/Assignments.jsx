@@ -105,10 +105,20 @@ export default function Assignments() {
     setSaving(false); setModal(false); setForm({ designerId: '', topicIds: [] }); load()
   }
 
+  const getDesignerGrade = (did) => {
+    const lIds = designerLabels.filter(dl => String(dl.designer_id) === String(did)).map(dl => dl.label_id)
+    const names = labels.filter(l => lIds.includes(l.id) && l.parent_id).map(l => l.name.trim().toUpperCase())
+    if (names.includes('A')) return 1
+    if (names.includes('B')) return 2
+    if (names.includes('C')) return 3
+    if (names.length > 0) return 10
+    return 99
+  }
+
   const filtered = assignments.filter(a => {
     if (filterDesigner !== 'all' && String(a.designer_id) !== String(filterDesigner)) return false
     return true
-  })
+  }).sort((a, b) => getDesignerGrade(a.designer_id) - getDesignerGrade(b.designer_id))
 
   const isOverdue = a => {
     const t = topicMap[String(a.topic_id)]
