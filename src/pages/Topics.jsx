@@ -25,7 +25,7 @@ export default function Topics() {
   const [saving, setSaving] = useState(false)
   const [checkedIds, setCheckedIds] = useState([])
 
-  useEffect(() => { load() }, [profile])
+  useEffect(() => { if (profile) load() }, [profile])
 
   async function load() {
     setLoading(true)

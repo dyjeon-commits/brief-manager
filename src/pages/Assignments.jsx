@@ -34,7 +34,7 @@ export default function Assignments() {
   const [viewMode, setViewMode] = useState('board') // 'table' | 'board'
   const dragId = useRef(null)
 
-  useEffect(() => { load() }, [profile])
+  useEffect(() => { if (profile) load() }, [profile])
 
   async function load() {
     setLoading(true)

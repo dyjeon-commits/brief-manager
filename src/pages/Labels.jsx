@@ -19,7 +19,7 @@ export default function Labels() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => { load() }, [profile])
+  useEffect(() => { if (profile) load() }, [profile])
 
   async function load() {
     setLoading(true)

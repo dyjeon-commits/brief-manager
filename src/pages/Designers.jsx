@@ -21,7 +21,7 @@ export default function Designers() {
   const [saving, setSaving] = useState(false)
   const [detailId, setDetailId] = useState(null)
 
-  useEffect(() => { load() }, [profile])
+  useEffect(() => { if (profile) load() }, [profile])
 
   async function load() {
     setLoading(true)

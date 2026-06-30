@@ -58,7 +58,7 @@ export default function Dashboard({ onNavigate }) {
 
   const isSuperadmin = profile?.role === 'superadmin'
 
-  useEffect(() => { load() }, [profile])
+  useEffect(() => { if (profile) load() }, [profile])
 
   async function load() {
     setLoading(true)
