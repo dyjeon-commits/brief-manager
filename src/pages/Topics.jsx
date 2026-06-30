@@ -112,33 +112,45 @@ export default function Topics() {
     return designerLabels.filter(dl => String(dl.designer_id) === String(did)).map(dl => dl.label_id)
   }
 
+  function getDesignerGrade(did) {
+    const dLabelIds = getDesignerLabelIds(did)
+    const dLabels = labels.filter(l => dLabelIds.includes(l.id) && l.parent_id)
+    const names = dLabels.map(l => l.name.trim().toUpperCase())
+    if (names.includes('A')) return 1
+    if (names.includes('B')) return 2
+    if (names.includes('C')) return 3
+    if (dLabels.length > 0) return 10
+    return 99
+  }
+
+  const sortedDesigners = [...designers].sort((a, b) => getDesignerGrade(a.id) - getDesignerGrade(b.id))
+
   function runTmplAuto() {
     const n = parseInt(tmplCount)
     if (!n || n < 1) return
-    const m = designers.length
+    const m = sortedDesigners.length
     if (m === 0) return
 
     const base = Math.floor(n / m)
     const remainder = n % m
 
-    // A등급 디자이너 (라벨 있는 디자이너, 없으면 전체)
-    const graded = designers.filter(d => getDesignerLabelIds(d.id).length > 0)
-    const aGraders = graded.length > 0 ? graded : designers
+    // A등급 디자이너
+    const aGraders = sortedDesigners.filter(d => getDesignerGrade(d.id) === 1)
+    const orderedForRemainder = aGraders.length > 0
+      ? [...aGraders, ...sortedDesigners.filter(d => getDesignerGrade(d.id) !== 1)]
+      : sortedDesigners
 
     // 각 디자이너에게 배정할 수
     const counts = {}
-    designers.forEach(d => { counts[d.id] = base })
-    // 나머지는 A등급 먼저 시작해 전체 라운드로빈 (1~2개 차이)
-    const nonAGraders = designers.filter(d => !aGraders.includes(d))
-    const orderedForRemainder = [...aGraders, ...nonAGraders]
+    sortedDesigners.forEach(d => { counts[d.id] = base })
     for (let i = 0; i < remainder; i++) {
       counts[orderedForRemainder[i % orderedForRemainder.length].id]++
     }
 
-    // 템플릿 idx 배분
+    // 템플릿 idx 배분 (등급순)
     const result = []
     let idx = 1
-    for (const d of designers) {
+    for (const d of sortedDesigners) {
       for (let i = 0; i < counts[d.id]; i++) {
         result.push({ templateIdx: idx++, designerId: d.id })
       }
@@ -413,7 +425,7 @@ export default function Topics() {
           <div className="modal" style={{ width: 560 }} onClick={e => e.stopPropagation()}>
             <h2>📦 템플릿 배분 — {tmplTopic.name}</h2>
             <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 16 }}>
-              템플릿 수를 입력하면 외주 {designers.length}명에게 균등 배분합니다. 나머지는 A등급 외주에게 우선 배정됩니다.
+              템플릿 수를 입력하면 외주 {sortedDesigners.length}명에게 균등 배분합니다. 나머지는 A등급 외주에게 우선 배정됩니다.
             </p>
 
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 16 }}>
@@ -431,18 +443,17 @@ export default function Topics() {
             {tmplResult.length > 0 && (() => {
               // 디자이너별 그룹핑
               const grouped = {}
-              designers.forEach(d => { grouped[d.id] = [] })
+              sortedDesigners.forEach(d => { grouped[d.id] = [] })
               tmplResult.forEach(r => { if (grouped[r.designerId]) grouped[r.designerId].push(r.templateIdx) })
 
               function adjustCount(designerId, delta) {
                 const counts = {}
-                designers.forEach(d => { counts[d.id] = (grouped[d.id] || []).length })
+                sortedDesigners.forEach(d => { counts[d.id] = (grouped[d.id] || []).length })
                 const next = (counts[designerId] || 0) + delta
                 if (next < 0) return
                 counts[designerId] = next
-                // 총합 기준으로 idx 재배정
                 const result = []; let idx = 1
-                for (const d of designers) {
+                for (const d of sortedDesigners) {
                   for (let i = 0; i < counts[d.id]; i++) result.push({ templateIdx: idx++, designerId: d.id })
                 }
                 setTmplResult(result)
@@ -451,7 +462,7 @@ export default function Topics() {
               return (
                 <>
                   <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 360, overflowY: 'auto', marginBottom: 14 }}>
-                    {designers.map(d => {
+                    {sortedDesigners.map(d => {
                       const idxList = grouped[d.id] || []
                       const dLabelIds = designerLabels.filter(dl => String(dl.designer_id) === String(d.id)).map(dl => dl.label_id)
                       const dLabels = labels.filter(l => dLabelIds.includes(l.id))
@@ -480,7 +491,7 @@ export default function Topics() {
                     })}
                   </div>
                   <div style={{ background: '#f8fafc', borderRadius: 8, padding: '8px 14px', marginBottom: 14, fontSize: 13, color: 'var(--text2)' }}>
-                    총 <strong style={{ color: 'var(--text)' }}>{tmplResult.length}개</strong> 템플릿 · 외주 1인 평균 <strong style={{ color: 'var(--text)' }}>{(tmplResult.length / designers.length).toFixed(1)}개</strong>
+                    총 <strong style={{ color: 'var(--text)' }}>{tmplResult.length}개</strong> 템플릿 · 외주 1인 평균 <strong style={{ color: 'var(--text)' }}>{(tmplResult.length / sortedDesigners.length).toFixed(1)}개</strong>
                   </div>
                 </>
               )
