@@ -20,7 +20,7 @@ function RenderContent({ text }) {
 function NoticeAccordion({ n, onEdit, onDelete }) {
   const [open, setOpen] = useState(false)
   return (
-    <div style={{ border: '1.5px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+    <div style={{ borderRadius: 10, overflow: 'hidden' }}>
       <div onClick={() => setOpen(p => !p)}
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', cursor: 'pointer', userSelect: 'none' }}>
         <span style={{ fontWeight: 700, fontSize: 14 }}>{n.title}</span>
@@ -207,7 +207,7 @@ export default function Dashboard({ onNavigate }) {
       <div className="card" style={{ padding: '20px 24px', marginBottom: 16, background: '#fffbeb', border: '1.5px solid #fde68a' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <strong style={{ fontSize: 15 }}>📢 공지 / 가이드</strong>
-          <button className="btn btn-primary" style={{ fontSize: 13, padding: '6px 14px' }} onClick={openAddNotice}>+ 공지 추가</button>
+          <button onClick={openAddNotice} style={{ fontSize: 13, padding: '6px 14px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>+ 공지 추가</button>
         </div>
         {notices.length === 0 ? (
           <div style={{ color: 'var(--text2)', fontSize: 13, padding: '12px 0' }}>
