@@ -109,8 +109,22 @@ export default function Designers() {
           <button className="btn btn-primary" onClick={openAdd}>첫 디자이너 추가하기</button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
-          {sortedDesigners.map(d => {
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+          {(() => {
+            const GRADE_LABELS = { 1: 'A등급', 2: 'B등급', 3: 'C등급', 10: '기타', 99: '등급 없음' }
+            const groups = {}
+            sortedDesigners.forEach(d => {
+              const g = getDesignerGrade(d.id)
+              if (!groups[g]) groups[g] = []
+              groups[g].push(d)
+            })
+            return Object.entries(groups).sort((a, b) => a[0] - b[0]).map(([grade, list]) => (
+              <div key={grade}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12, paddingBottom: 8, borderBottom: '1.5px solid var(--border)' }}>
+                  {GRADE_LABELS[grade] || '기타'} ({list.length}명)
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+                  {list.map(d => {
             const { total, active } = countFor(d.id)
             const labelObjs = getDesignerLabelObjs(d.id)
             return (
@@ -151,6 +165,10 @@ export default function Designers() {
               </div>
             )
           })}
+                </div>
+              </div>
+            ))
+          })()}
         </div>
       )}
 
