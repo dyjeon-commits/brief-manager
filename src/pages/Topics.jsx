@@ -425,12 +425,70 @@ export default function Topics() {
           <div className="modal" style={{ width: 560 }} onClick={e => e.stopPropagation()}>
             <h2>📦 템플릿 배분 — {tmplTopic.name}</h2>
             <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 16 }}>
-              템플릿 수를 입력하면 외주 {sortedDesigners.length}명에게 균등 배분합니다. 나머지는 A등급 외주에게 우선 배정됩니다.
+              CSV 업로드로 닉네임 매칭 배분하거나, 수동으로 수량을 입력해 균등 배분할 수 있습니다.
             </p>
+
+            {/* CSV 업로드 */}
+            <div style={{ background: '#f8fafc', border: '1.5px dashed var(--border)', borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 8 }}>📂 CSV로 닉네임 매칭 배분</div>
+              <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 10 }}>
+                컬럼 형식: <code style={{ background: '#e2e8f0', borderRadius: 4, padding: '1px 5px' }}>가설, 템플릿 idx, 디자인허브 닉네임, ...</code><br/>
+                현재 주제명 <strong>"{tmplTopic.name}"</strong>에 해당하는 행만 처리합니다.
+              </div>
+              <input type="file" accept=".csv" style={{ display: 'none' }} id="csv-upload"
+                onChange={e => {
+                  const file = e.target.files[0]
+                  if (!file) return
+                  const reader = new FileReader()
+                  reader.onload = ev => {
+                    const lines = ev.target.result.split('\n').map(l => l.trim()).filter(Boolean)
+                    if (lines.length < 2) return
+                    // 헤더 건너뛰고 파싱
+                    const rows = lines.slice(1).map(l => {
+                      const cols = l.split(',')
+                      return { topic: cols[0]?.trim(), idx: parseInt(cols[1]?.trim()), nickname: cols[2]?.trim() }
+                    }).filter(r => r.topic === tmplTopic.name && !isNaN(r.idx))
+
+                    if (rows.length === 0) {
+                      alert(`"${tmplTopic.name}"에 해당하는 행이 없습니다.\nCSV의 가설 컬럼명과 주제명이 일치하는지 확인해주세요.`)
+                      e.target.value = ''
+                      return
+                    }
+
+                    // 닉네임 → 디자이너 매핑
+                    const nicknameMap = {}
+                    sortedDesigners.forEach(d => { if (d.nickname) nicknameMap[d.nickname.trim()] = d.id })
+
+                    const result = []
+                    const unmatched = []
+                    rows.forEach(r => {
+                      const did = r.nickname ? nicknameMap[r.nickname] : null
+                      if (did) result.push({ templateIdx: r.idx, designerId: did })
+                      else unmatched.push(r.idx)
+                    })
+
+                    // 매칭 안 된 건 라운드로빈으로 분배
+                    unmatched.forEach((idx, i) => {
+                      result.push({ templateIdx: idx, designerId: sortedDesigners[i % sortedDesigners.length].id })
+                    })
+
+                    result.sort((a, b) => a.templateIdx - b.templateIdx)
+                    setTmplResult(result)
+                    setTmplCount(result.length)
+                    if (unmatched.length > 0) alert(`매칭 완료! 닉네임 불일치 ${unmatched.length}건(idx: ${unmatched.slice(0,5).join(', ')}${unmatched.length > 5 ? '...' : ''})은 랜덤 배분했습니다.`)
+                    e.target.value = ''
+                  }
+                  reader.readAsText(file, 'utf-8')
+                }}
+              />
+              <label htmlFor="csv-upload" className="btn btn-ghost" style={{ cursor: 'pointer', fontSize: 13 }}>
+                📂 CSV 파일 선택
+              </label>
+            </div>
 
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 16 }}>
               <div className="fg" style={{ flex: 1, margin: 0 }}>
-                <label>총 템플릿 수</label>
+                <label>총 템플릿 수 (수동 균등 배분)</label>
                 <input type="number" min={1} value={tmplCount}
                   onChange={e => setTmplCount(e.target.value)}
                   placeholder="예: 30" style={{ width: '100%' }} />
