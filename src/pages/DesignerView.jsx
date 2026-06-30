@@ -22,6 +22,7 @@ export default function DesignerView({ token }) {
   const [assignments, setAssignments] = useState([])
   const [topics, setTopics] = useState([])
   const [notices, setNotices] = useState([])
+  const [templateAssignments, setTemplateAssignments] = useState([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
@@ -42,14 +43,19 @@ export default function DesignerView({ token }) {
     ])
 
     const topicIds = (a || []).map(x => x.topic_id)
-    let topicData = []
+    let topicData = [], tmplData = []
     if (topicIds.length > 0) {
-      const { data: t } = await supabase.from('topics').select('*').in('id', topicIds)
+      const [{ data: t }, { data: tm }] = await Promise.all([
+        supabase.from('topics').select('*').in('id', topicIds),
+        supabase.from('template_assignments').select('*').eq('designer_id', d.id),
+      ])
       topicData = t || []
+      tmplData = tm || []
     }
     setAssignments(a || [])
     setTopics(topicData)
     setNotices(n || [])
+    setTemplateAssignments(tmplData)
     setLoading(false)
   }
 
@@ -121,7 +127,7 @@ export default function DesignerView({ token }) {
               <div style={{ marginBottom: 32 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>진행중 ({active.length})</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {active.map(a => <AssignmentCard key={a.id} a={a} t={topicMap[String(a.topic_id)]} />)}
+                  {active.map(a => <AssignmentCard key={a.id} a={a} t={topicMap[String(a.topic_id)]} tmplIdxList={templateAssignments.filter(tm => String(tm.topic_id) === String(a.topic_id)).map(tm => tm.template_idx).sort((x,y)=>x-y)} />)}
                 </div>
               </div>
             )}
@@ -129,7 +135,7 @@ export default function DesignerView({ token }) {
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>완료 ({completed.length})</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, opacity: 0.6 }}>
-                  {completed.map(a => <AssignmentCard key={a.id} a={a} t={topicMap[String(a.topic_id)]} />)}
+                  {completed.map(a => <AssignmentCard key={a.id} a={a} t={topicMap[String(a.topic_id)]} tmplIdxList={templateAssignments.filter(tm => String(tm.topic_id) === String(a.topic_id)).map(tm => tm.template_idx).sort((x,y)=>x-y)} />)}
                 </div>
               </div>
             )}
@@ -180,7 +186,7 @@ function NoticeAccordion({ n }) {
   )
 }
 
-function AssignmentCard({ a, t }) {
+function AssignmentCard({ a, t, tmplIdxList = [] }) {
   const isOverdue = t?.deadline && a.status !== 'completed' && new Date(t.deadline) < new Date()
   const status = a.status || 'not_submitted'
   return (
@@ -210,6 +216,16 @@ function AssignmentCard({ a, t }) {
           )}
         </div>
       </div>
+      {tmplIdxList.length > 0 && (
+        <div style={{ marginTop: 12, padding: '10px 14px', background: '#f1f5f9', borderRadius: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>📐 담당 템플릿</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {tmplIdxList.map(idx => (
+              <span key={idx} style={{ background: 'white', border: '1px solid #cbd5e1', borderRadius: 5, padding: '2px 8px', fontSize: 12, color: '#334155', fontWeight: 600 }}>#{idx}</span>
+            ))}
+          </div>
+        </div>
+      )}
       {t?.notice && (
         <div style={{ marginTop: 12, padding: '10px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, fontSize: 13, color: '#78350f', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
           📌 {t.notice}
