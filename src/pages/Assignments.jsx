@@ -32,6 +32,9 @@ export default function Assignments() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [viewMode, setViewMode] = useState('board') // 'table' | 'board'
+  const [bulkAutoModal, setBulkAutoModal] = useState(false)
+  const [bulkProposals, setBulkProposals] = useState([])
+  const [selectedProposals, setSelectedProposals] = useState([])
   const dragId = useRef(null)
 
   useEffect(() => { if (profile) load() }, [profile])
@@ -117,6 +120,56 @@ export default function Assignments() {
 
   const autoTopics = topics.filter(t => getAutoSuggestedDesigners(t.id).length > 0)
 
+  function runBulkAuto() {
+    const assignedTopicIds = new Set(assignments.map(a => String(a.topic_id)))
+    const unassigned = topics.filter(t => !assignedTopicIds.has(String(t.id)))
+
+    const assignCount = {}
+    designers.forEach(d => { assignCount[d.id] = assignments.filter(a => String(a.designer_id) === String(d.id)).length })
+
+    const getTopicLabelIds = tid => topicLabels.filter(tl => String(tl.topic_id) === String(tid)).map(tl => tl.label_id)
+    const getDesignerLabelIds = did => designerLabels.filter(dl => String(dl.designer_id) === String(did)).map(dl => dl.label_id)
+
+    const gradedDesigners = designers.filter(d => getDesignerLabelIds(d.id).length > 0)
+    const ungradedDesigners = designers.filter(d => getDesignerLabelIds(d.id).length === 0)
+
+    const proposals = []
+    const unmatchedTopics = []
+
+    for (const topic of unassigned) {
+      const tLabelIds = getTopicLabelIds(topic.id)
+      if (tLabelIds.length === 0) { unmatchedTopics.push(topic); continue }
+      const matches = gradedDesigners.filter(d => getDesignerLabelIds(d.id).some(id => tLabelIds.includes(id)))
+      if (matches.length === 0) { unmatchedTopics.push(topic); continue }
+      matches.sort((a, b) => (assignCount[a.id] || 0) - (assignCount[b.id] || 0))
+      const chosen = matches[0]
+      assignCount[chosen.id] = (assignCount[chosen.id] || 0) + 1
+      proposals.push({ topic, designer: chosen, isMatch: true })
+    }
+
+    for (const topic of unmatchedTopics) {
+      const pool = ungradedDesigners.length > 0 ? ungradedDesigners : designers
+      if (pool.length === 0) continue
+      pool.sort((a, b) => (assignCount[a.id] || 0) - (assignCount[b.id] || 0))
+      const chosen = pool[0]
+      assignCount[chosen.id] = (assignCount[chosen.id] || 0) + 1
+      proposals.push({ topic, designer: chosen, isMatch: false })
+    }
+
+    setBulkProposals(proposals)
+    setSelectedProposals(proposals.map((_, i) => i))
+    setBulkAutoModal(true)
+  }
+
+  async function confirmBulkAuto() {
+    setSaving(true)
+    for (const i of selectedProposals) {
+      const { topic, designer } = bulkProposals[i]
+      await addAssignment({ designerId: designer.id, topicId: topic.id })
+    }
+    setSaving(false); setBulkAutoModal(false); load()
+  }
+
   // drag and drop
   function onDragStart(e, assignmentId) {
     dragId.current = assignmentId
@@ -159,6 +212,7 @@ export default function Assignments() {
               </button>
             ))}
           </div>
+          <button className="btn btn-ghost" onClick={runBulkAuto}>⚡ 전체 자동 배분</button>
           <button className="btn btn-primary" onClick={() => { setForm({ designerId: '', topicIds: [] }); setModal(true) }}>+ 배정 추가</button>
         </div>
       </div>
@@ -364,6 +418,73 @@ export default function Assignments() {
                 disabled={!form.designerId || form.topicIds.length === 0 || saving}
                 style={{ opacity: (!form.designerId || form.topicIds.length === 0) ? 0.5 : 1 }}>
                 {saving ? '배정 중...' : form.topicIds.length > 0 ? `${form.topicIds.length}개 배정` : '배정'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkAutoModal && (
+        <div className="overlay" onClick={() => setBulkAutoModal(false)}>
+          <div className="modal" style={{ width: 580 }} onClick={e => e.stopPropagation()}>
+            <h2>⚡ 전체 자동 배분 미리보기</h2>
+            <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 4 }}>
+              미배정 주제 {bulkProposals.length}건에 대한 배분 결과입니다. 체크 해제하면 해당 배정은 건너뜁니다.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+              <button className="btn btn-ghost" style={{ fontSize: 12, padding: '3px 10px' }}
+                onClick={() => setSelectedProposals(
+                  selectedProposals.length === bulkProposals.length ? [] : bulkProposals.map((_, i) => i)
+                )}>
+                {selectedProposals.length === bulkProposals.length ? '전체 해제' : '전체 선택'}
+              </button>
+            </div>
+            <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 400, overflowY: 'auto', marginBottom: 16 }}>
+              {bulkProposals.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', color: 'var(--text2)', fontSize: 13 }}>배분할 미배정 주제가 없습니다.</div>
+              ) : bulkProposals.map((p, i) => {
+                const on = selectedProposals.includes(i)
+                const dLabelIds = designerLabels.filter(dl => String(dl.designer_id) === String(p.designer.id)).map(dl => dl.label_id)
+                const dLabelObjs = labels.filter(l => dLabelIds.includes(l.id))
+                return (
+                  <div key={i} onClick={() => setSelectedProposals(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--border)',
+                      cursor: 'pointer', background: on ? 'var(--accent-bg)' : 'white', userSelect: 'none' }}>
+                    <div style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0, border: on ? 'none' : '1.5px solid var(--border)', background: on ? 'var(--accent)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {on && <span style={{ color: 'white', fontSize: 12, fontWeight: 700 }}>✓</span>}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.topic.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>
+                        {p.topic.deadline && `마감 ${p.topic.deadline} · `}{p.topic.pages && `${p.topic.pages}p`}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--text2)' }}>→</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
+                        {p.designer.name[0]}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{p.designer.name}</div>
+                        <div style={{ display: 'flex', gap: 3, marginTop: 2 }}>
+                          {dLabelObjs.map(l => <span key={l.id} style={{ background: l.color + '22', color: l.color, padding: '1px 6px', borderRadius: 20, fontSize: 10, fontWeight: 600 }}>{l.name}</span>)}
+                        </div>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20, fontWeight: 700, flexShrink: 0,
+                      background: p.isMatch ? '#dcfce7' : '#f1f5f9', color: p.isMatch ? '#16a34a' : '#64748b' }}>
+                      {p.isMatch ? '등급매칭' : '랜덤'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="ma">
+              <button className="btn btn-ghost" onClick={() => setBulkAutoModal(false)}>취소</button>
+              <button className="btn btn-primary" onClick={confirmBulkAuto}
+                disabled={selectedProposals.length === 0 || saving}
+                style={{ opacity: selectedProposals.length === 0 ? 0.5 : 1 }}>
+                {saving ? '배정 중...' : `${selectedProposals.length}건 배정 확정`}
               </button>
             </div>
           </div>
