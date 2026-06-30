@@ -31,7 +31,7 @@ export default function Assignments() {
   const [autoTopicId, setAutoTopicId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [viewMode, setViewMode] = useState('board')
+  const [viewMode, setViewMode] = useState('table')
   // 자동배분 wizard
   const [autoStep, setAutoStep] = useState(0) // 0=off, 1, 2, 3
   const [stepGrade, setStepGrade] = useState([])   // [{topic, selectedDesignerIds}]
