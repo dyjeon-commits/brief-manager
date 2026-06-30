@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { getAll, addDesigner, updateDesigner, deleteDesigner, setDesignerLabels, updateAssignmentStatus, deleteAssignment } from '../api'
 import { useAuth } from '../AuthContext'
 
-const EMPTY = { name: '', contact: '', specialty: '', note: '' }
+const EMPTY = { name: '', nickname: '', contact: '', specialty: '', note: '' }
 
 export default function Designers() {
   const { profile } = useAuth()
@@ -36,7 +36,7 @@ export default function Designers() {
 
   function openAdd() { setForm(EMPTY); setSelectedLabels([]); setEditId(null); setModal(true) }
   function openEdit(d) {
-    setForm({ name: d.name, contact: d.contact || '', specialty: d.specialty || '', note: d.note || '' })
+    setForm({ name: d.name, nickname: d.nickname || '', contact: d.contact || '', specialty: d.specialty || '', note: d.note || '' })
     const myLabels = designerLabels.filter(dl => dl.designer_id === d.id).map(dl => dl.label_id)
     setSelectedLabels(myLabels)
     setEditId(d.id); setModal(true)
@@ -72,7 +72,7 @@ export default function Designers() {
     const childLabels = labels.filter(l => labelIds.includes(l.id) && l.parent_id)
     return childLabels.map(l => {
       const cat = labels.find(c => c.id === l.parent_id)
-      return { ...l, catName: cat?.name || '', catColor: cat?.color || l.color }
+      return { ...l, catName: cat?.name || '', catColor: l.color }
     })
   }
 
@@ -196,6 +196,7 @@ export default function Designers() {
             <h2>{editId ? '디자이너 수정' : '디자이너 추가'}</h2>
             {[
               { label: '이름 *', key: 'name', placeholder: '홍길동' },
+              { label: '닉네임 (디자인허브)', key: 'nickname', placeholder: 'joonbbo, ee5663 등' },
               { label: '전문분야', key: 'specialty', placeholder: 'UX/UI, 그래픽, 영상 등' },
             ].map(f => (
               <div key={f.key} className="fg">
