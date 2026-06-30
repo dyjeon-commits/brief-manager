@@ -268,27 +268,11 @@ export default function Assignments() {
               </button>
             ))}
           </div>
-          <button className="btn btn-ghost" onClick={startWizard}>⚡ 전체 자동 배분</button>
+          <button className="btn btn-primary" onClick={startWizard} style={{ background: '#f59e0b', borderColor: '#f59e0b' }}>⚡ 전체 자동 배분</button>
           <button className="btn btn-primary" onClick={() => { setForm({ designerId: '', topicIds: [] }); setModal(true) }}>+ 배정 추가</button>
         </div>
       </div>
 
-      {autoTopics.length > 0 && (
-        <div style={{ background: '#eff6ff', border: '1.5px solid #bfdbfe', borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: '#1d4ed8', marginBottom: 10 }}>⚡ 자동배치 추천</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {autoTopics.map(t => {
-              const cnt = getAutoSuggestedDesigners(t.id).length
-              return (
-                <button key={t.id} onClick={() => openAutoModal(t.id)}
-                  style={{ background: 'white', border: '1.5px solid #3b82f6', borderRadius: 8, padding: '7px 14px', fontSize: 13, cursor: 'pointer', color: '#1d4ed8', fontWeight: 600 }}>
-                  {t.name} <span style={{ background: '#3b82f6', color: 'white', borderRadius: 20, padding: '1px 7px', fontSize: 11, marginLeft: 4 }}>{cnt}명 매칭</span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
 
       {/* 디자이너 필터 */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
