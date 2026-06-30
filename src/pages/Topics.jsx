@@ -31,6 +31,7 @@ export default function Topics() {
   const [tmplTopic, setTmplTopic] = useState(null)
   const [tmplCount, setTmplCount] = useState('')
   const [tmplResult, setTmplResult] = useState([]) // [{templateIdx, designerId}]
+  const [tmplAllIdxs, setTmplAllIdxs] = useState([]) // 원본 전체 idx 목록
   const [tmplSaving, setTmplSaving] = useState(false)
 
   useEffect(() => { if (profile) load() }, [profile])
@@ -156,6 +157,7 @@ export default function Topics() {
       }
     }
     setTmplResult(result)
+    setTmplAllIdxs(result.map(r => r.templateIdx).sort((a, b) => a - b))
   }
 
   async function saveTmplAssignments() {
@@ -474,6 +476,7 @@ export default function Topics() {
 
                     result.sort((a, b) => a.templateIdx - b.templateIdx)
                     setTmplResult(result)
+                    setTmplAllIdxs(result.map(r => r.templateIdx))
                     setTmplCount(result.length)
                     if (unmatched.length > 0) alert(`매칭 완료! 닉네임 불일치 ${unmatched.length}건(idx: ${unmatched.slice(0,5).join(', ')}${unmatched.length > 5 ? '...' : ''})은 랜덤 배분했습니다.`)
                     e.target.value = ''
@@ -510,8 +513,8 @@ export default function Topics() {
                 const next = (counts[designerId] || 0) + delta
                 if (next < 0) return
                 counts[designerId] = next
-                // 기존 idx 값 유지하면서 재분배
-                const allIdxs = tmplResult.map(r => r.templateIdx).sort((a, b) => a - b)
+                // 원본 전체 idx 목록 기준으로 재분배
+                const allIdxs = (tmplAllIdxs.length > 0 ? tmplAllIdxs : tmplResult.map(r => r.templateIdx)).sort((a, b) => a - b)
                 const result = []; let i = 0
                 for (const d of sortedDesigners) {
                   for (let j = 0; j < counts[d.id]; j++) {
