@@ -76,6 +76,19 @@ export default function Designers() {
     })
   }
 
+  function getDesignerGrade(id) {
+    const labelIds = designerLabels.filter(dl => dl.designer_id === id).map(dl => dl.label_id)
+    const childLabels = labels.filter(l => labelIds.includes(l.id) && l.parent_id)
+    const names = childLabels.map(l => l.name.trim().toUpperCase())
+    if (names.includes('A')) return 1
+    if (names.includes('B')) return 2
+    if (names.includes('C')) return 3
+    if (childLabels.length > 0) return 10
+    return 99
+  }
+
+  const sortedDesigners = [...designers].sort((a, b) => getDesignerGrade(a.id) - getDesignerGrade(b.id))
+
   function toggleLabel(id) {
     setSelectedLabels(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id])
   }
@@ -97,7 +110,7 @@ export default function Designers() {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
-          {designers.map(d => {
+          {sortedDesigners.map(d => {
             const { total, active } = countFor(d.id)
             const labelObjs = getDesignerLabelObjs(d.id)
             return (
