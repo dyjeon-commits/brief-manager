@@ -128,9 +128,11 @@ export default function Topics() {
     // 각 디자이너에게 배정할 수
     const counts = {}
     designers.forEach(d => { counts[d.id] = base })
-    // 나머지는 A등급 순서대로
+    // 나머지는 A등급 먼저 시작해 전체 라운드로빈 (1~2개 차이)
+    const nonAGraders = designers.filter(d => !aGraders.includes(d))
+    const orderedForRemainder = [...aGraders, ...nonAGraders]
     for (let i = 0; i < remainder; i++) {
-      counts[aGraders[i % aGraders.length].id]++
+      counts[orderedForRemainder[i % orderedForRemainder.length].id]++
     }
 
     // 템플릿 idx 배분
