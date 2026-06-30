@@ -433,7 +433,7 @@ export default function Topics() {
               <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 8 }}>📂 CSV로 닉네임 매칭 배분</div>
               <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 10 }}>
                 컬럼 형식: <code style={{ background: '#e2e8f0', borderRadius: 4, padding: '1px 5px' }}>가설, 템플릿 idx, 디자인허브 닉네임, ...</code><br/>
-                현재 주제명 <strong>"{tmplTopic.name}"</strong>에 해당하는 행만 처리합니다.
+                CSV의 모든 행을 읽어 닉네임으로 매칭합니다. 가설 컬럼은 무시됩니다.
               </div>
               <input type="file" accept=".csv" style={{ display: 'none' }} id="csv-upload"
                 onChange={e => {
@@ -446,11 +446,11 @@ export default function Topics() {
                     // 헤더 건너뛰고 파싱
                     const rows = lines.slice(1).map(l => {
                       const cols = l.split(',')
-                      return { topic: cols[0]?.trim(), idx: parseInt(cols[1]?.trim()), nickname: cols[2]?.trim() }
-                    }).filter(r => r.topic === tmplTopic.name && !isNaN(r.idx))
+                      return { idx: parseInt(cols[1]?.trim()), nickname: cols[2]?.trim() }
+                    }).filter(r => !isNaN(r.idx))
 
                     if (rows.length === 0) {
-                      alert(`"${tmplTopic.name}"에 해당하는 행이 없습니다.\nCSV의 가설 컬럼명과 주제명이 일치하는지 확인해주세요.`)
+                      alert('유효한 행이 없습니다. 컬럼 순서를 확인해주세요.')
                       e.target.value = ''
                       return
                     }
