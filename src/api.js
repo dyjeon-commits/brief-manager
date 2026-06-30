@@ -4,7 +4,7 @@ export async function getAll(pmId = null, isSuperadmin = false) {
   let designersQ = supabase.from('designers').select('*').order('created_at')
   let topicsQ = supabase.from('topics').select('*').order('created_at')
 
-  if (!isSuperadmin && pmId) {
+  if (pmId) {
     designersQ = designersQ.eq('pm_id', pmId)
     topicsQ = topicsQ.eq('pm_id', pmId)
   }
