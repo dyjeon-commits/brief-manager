@@ -184,30 +184,37 @@ function AssignmentCard({ a, t }) {
   const isOverdue = t?.deadline && a.status !== 'completed' && new Date(t.deadline) < new Date()
   const status = a.status || 'not_submitted'
   return (
-    <div style={{ background: 'white', borderRadius: 12, padding: '18px 20px', border: `1.5px solid ${isOverdue ? '#fca5a5' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', gap: 16 }}>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>{t?.name || '-'}</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, fontSize: 13, color: '#64748b' }}>
-          {t?.type && <span style={{ background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 500 }}>{t.type}</span>}
-          {t?.deadline && (
-            <span style={{ color: isOverdue ? '#dc2626' : '#64748b', fontWeight: isOverdue ? 700 : 400 }}>
-              📅 {t.deadline}{isOverdue ? ' (마감초과)' : ''}
-            </span>
+    <div style={{ background: 'white', borderRadius: 12, padding: '18px 20px', border: `1.5px solid ${isOverdue ? '#fca5a5' : '#e2e8f0'}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>{t?.name || '-'}</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, fontSize: 13, color: '#64748b' }}>
+            {t?.type && <span style={{ background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 500 }}>{t.type}</span>}
+            {t?.deadline && (
+              <span style={{ color: isOverdue ? '#dc2626' : '#64748b', fontWeight: isOverdue ? 700 : 400 }}>
+                📅 {t.deadline}{isOverdue ? ' (마감초과)' : ''}
+              </span>
+            )}
+            {t?.pages && <span>📄 {t.pages}p</span>}
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+          <span style={{ background: (STATUS_COLOR[status] || '#94a3b8') + '22', color: STATUS_COLOR[status] || '#94a3b8', padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600 }}>
+            {STATUS_LABEL[status] || status}
+          </span>
+          {t?.brief_url && (
+            <a href={t.brief_url} target="_blank" rel="noreferrer"
+              style={{ background: '#6366f1', color: 'white', padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+              기획서 열기 →
+            </a>
           )}
-          {t?.pages && <span>📄 {t.pages}p</span>}
         </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
-        <span style={{ background: (STATUS_COLOR[status] || '#94a3b8') + '22', color: STATUS_COLOR[status] || '#94a3b8', padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600 }}>
-          {STATUS_LABEL[status] || status}
-        </span>
-        {t?.brief_url && (
-          <a href={t.brief_url} target="_blank" rel="noreferrer"
-            style={{ background: '#6366f1', color: 'white', padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
-            기획서 열기 →
-          </a>
-        )}
-      </div>
+      {t?.notice && (
+        <div style={{ marginTop: 12, padding: '10px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, fontSize: 13, color: '#78350f', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
+          📌 {t.notice}
+        </div>
+      )}
     </div>
   )
 }

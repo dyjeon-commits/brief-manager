@@ -7,7 +7,7 @@ const TYPE_OPTIONS = [
   '유튜브 썸네일', '카드뉴스', '인포그래픽', '기타',
 ]
 
-const EMPTY = { name: '', briefUrl: '', type: '', type2: '', deadline: '', pages: '' }
+const EMPTY = { name: '', briefUrl: '', type: '', type2: '', deadline: '', pages: '', notice: '' }
 
 export default function Topics() {
   const { profile } = useAuth()
@@ -39,7 +39,7 @@ export default function Topics() {
 
   function openAdd() { setForm(EMPTY); setSelectedLabels([]); setEditId(null); setModal(true) }
   function openEdit(t) {
-    setForm({ name: t.name, briefUrl: t.brief_url || '', type: t.type || '', type2: t.type2 || '', deadline: t.deadline || '', pages: t.pages || '' })
+    setForm({ name: t.name, briefUrl: t.brief_url || '', type: t.type || '', type2: t.type2 || '', deadline: t.deadline || '', pages: t.pages || '', notice: t.notice || '' })
     const myLabels = topicLabels.filter(tl => tl.topic_id === t.id).map(tl => tl.label_id)
     setSelectedLabels(myLabels)
     setEditId(t.id); setModal(true)
@@ -324,6 +324,12 @@ export default function Topics() {
                 </div>
               </div>
             )}
+            <div className="fg">
+              <label>주제 공지사항</label>
+              <textarea value={form.notice} onChange={e => setForm(p => ({ ...p, notice: e.target.value }))}
+                placeholder="외주에게 전달할 주제별 공지나 가이드를 입력하세요."
+                style={{ width: '100%', minHeight: 80, padding: '8px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            </div>
             <div className="ma">
               <button className="btn btn-ghost" onClick={() => setModal(false)}>취소</button>
               <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중...' : editId ? '저장' : '추가'}</button>

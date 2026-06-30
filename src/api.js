@@ -55,6 +55,7 @@ export async function addTopic(data, pmId) {
     type2: data.type2,
     deadline: data.deadline || null,
     pages: data.pages ? parseInt(data.pages) : null,
+    notice: data.notice || null,
     pm_id: pmId,
   }).select().single()
   return result
@@ -68,6 +69,7 @@ export async function updateTopic(data) {
     type2: rest.type2,
     deadline: rest.deadline || null,
     pages: rest.pages ? parseInt(rest.pages) : null,
+    notice: rest.notice || null,
   }).eq('id', id)
 }
 export async function deleteTopic(id) {
