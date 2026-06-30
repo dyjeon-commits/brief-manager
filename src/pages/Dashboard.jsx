@@ -193,7 +193,8 @@ export default function Dashboard({ onNavigate }) {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+        {/* 디자이너별 현황 */}
         <div className="card" style={{ padding: '20px 24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <strong style={{ fontSize: 15 }}>디자이너별 현황</strong>
@@ -219,6 +220,7 @@ export default function Dashboard({ onNavigate }) {
           }
         </div>
 
+        {/* 주제별 배정 현황 */}
         <div className="card" style={{ padding: '20px 24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <strong style={{ fontSize: 15 }}>주제별 배정 현황</strong>
@@ -241,6 +243,50 @@ export default function Dashboard({ onNavigate }) {
               </div>
             ))
           }
+        </div>
+
+        {/* 마감일별 주제 현황 */}
+        <div className="card" style={{ padding: '20px 24px' }}>
+          <strong style={{ fontSize: 15 }}>📅 마감일별 주제 현황</strong>
+          {(() => {
+            const today = new Date(); today.setHours(0,0,0,0)
+            const byDeadline = {}
+            topics.filter(t => t.deadline).forEach(t => {
+              if (!byDeadline[t.deadline]) byDeadline[t.deadline] = []
+              byDeadline[t.deadline].push(t)
+            })
+            const sorted = Object.entries(byDeadline).sort((a, b) => new Date(a[0]) - new Date(b[0]))
+            if (sorted.length === 0) return <div style={{ color: 'var(--text2)', fontSize: 13, marginTop: 12 }}>마감일이 설정된 주제가 없습니다.</div>
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16 }}>
+                {sorted.map(([deadline, tList]) => {
+                  const d = new Date(deadline); d.setHours(0,0,0,0)
+                  const diff = Math.round((d - today) / (1000*60*60*24))
+                  const isPast = diff < 0
+                  const label = diff === 0 ? '오늘' : isPast ? `D+${Math.abs(diff)}` : `D-${diff}`
+                  const color = isPast ? '#ef4444' : diff <= 3 ? '#f59e0b' : '#6366f1'
+                  return (
+                    <div key={deadline} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                      <div style={{ minWidth: 80, paddingTop: 2 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color }}>{deadline}</div>
+                        <div style={{ fontSize: 11, color, fontWeight: 600 }}>{label}</div>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>총 {tList.length}개</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {tList.map(t => (
+                            <span key={t.id} style={{ background: color + '15', color, border: `1px solid ${color}33`, borderRadius: 5, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>
+                              {t.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
         </div>
       </div>
 
