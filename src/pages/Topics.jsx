@@ -499,7 +499,7 @@ export default function Topics() {
                       const belowAvg = sortedDesigners.filter(d => (grouped[d.id] || []).length < Math.ceil(avg))
                       return (
                         <div style={{ background: '#fff7ed', border: '1.5px solid #fed7aa', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#9a3412' }}>
-                          ⚠️ <strong>{diff}개 부족</strong> — 아래 외주에게 추가 배정이 필요합니다:&nbsp;
+                          ⚠️ <strong>{diff}개 부족</strong> — 아래 외주 중 <strong>{diff}명</strong>에게 배정이 필요합니다:&nbsp;
                           <strong>{belowAvg.length > 0 ? belowAvg.map(d => d.name).join(', ') : sortedDesigners.map(d => d.name).join(', ')}</strong>
                         </div>
                       )
