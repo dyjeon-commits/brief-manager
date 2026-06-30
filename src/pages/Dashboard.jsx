@@ -116,7 +116,7 @@ export default function Dashboard({ onNavigate }) {
     setNotices(await getNotices(profile?.id))
   }
 
-  const { designers, topics, assignments } = data
+  const { designers, topics, assignments, labels = [], designerLabels = [] } = data
   const topicMap = Object.fromEntries(topics.map(t => [String(t.id), t]))
 
   const stats = {
@@ -129,11 +129,23 @@ export default function Dashboard({ onNavigate }) {
     }).length,
   }
 
+  const getDesignerGrade = (designerId) => {
+    const dLabelIds = designerLabels.filter(dl => String(dl.designer_id) === String(designerId)).map(dl => dl.label_id)
+    const dLabels = labels.filter(l => dLabelIds.includes(l.id) && l.parent_id)
+    if (dLabels.length === 0) return 99
+    const names = dLabels.map(l => l.name.trim().toUpperCase())
+    if (names.includes('A')) return 1
+    if (names.includes('B')) return 2
+    if (names.includes('C')) return 3
+    return 10
+  }
+
   const byDesigner = designers.map(d => ({
     ...d,
     total:      assignments.filter(a => String(a.designer_id) === String(d.id)).length,
     inprogress: assignments.filter(a => String(a.designer_id) === String(d.id) && a.status !== 'completed').length,
-  })).sort((a, b) => b.inprogress - a.inprogress)
+    grade:      getDesignerGrade(d.id),
+  })).sort((a, b) => a.grade !== b.grade ? a.grade - b.grade : b.inprogress - a.inprogress)
 
   const byTopic = topics.map(t => ({
     ...t,
