@@ -510,9 +510,13 @@ export default function Topics() {
                 const next = (counts[designerId] || 0) + delta
                 if (next < 0) return
                 counts[designerId] = next
-                const result = []; let idx = 1
+                // 기존 idx 값 유지하면서 재분배
+                const allIdxs = tmplResult.map(r => r.templateIdx).sort((a, b) => a - b)
+                const result = []; let i = 0
                 for (const d of sortedDesigners) {
-                  for (let i = 0; i < counts[d.id]; i++) result.push({ templateIdx: idx++, designerId: d.id })
+                  for (let j = 0; j < counts[d.id]; j++) {
+                    if (i < allIdxs.length) result.push({ templateIdx: allIdxs[i++], designerId: d.id })
+                  }
                 }
                 setTmplResult(result)
               }
@@ -540,7 +544,7 @@ export default function Topics() {
                           {idxList.length > 0 && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                               {idxList.map(idx => (
-                                <span key={idx} style={{ background: '#f1f5f9', borderRadius: 5, padding: '2px 7px', fontSize: 12, color: 'var(--text2)' }}>#{idx}</span>
+                                <span key={idx} style={{ background: '#f1f5f9', borderRadius: 5, padding: '2px 7px', fontSize: 12, color: 'var(--text2)' }}>idx {idx}</span>
                               ))}
                             </div>
                           )}
