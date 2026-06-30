@@ -233,9 +233,9 @@ export default function Designers() {
                             return (
                               <div key={l.id} onClick={() => toggleLabel(l.id)}
                                 style={{ padding: '5px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                                  background: on ? cat.color : cat.color + '22',
-                                  color: on ? 'white' : cat.color,
-                                  border: `2px solid ${cat.color}` }}>
+                                  background: on ? l.color : l.color + '22',
+                                  color: on ? 'white' : l.color,
+                                  border: `2px solid ${l.color}` }}>
                                 {l.name}
                               </div>
                             )
