@@ -298,7 +298,7 @@ export default function Topics() {
                       <span style={{ background: 'var(--accent-bg)', color: 'var(--accent)', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 600 }}>{countFor(t.id)}명</span>
                     </td>
                     <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
-                      <button className="btn btn-ghost" style={{ fontSize: 13, padding: '5px 10px' }} onClick={() => openTmplModal(t)}>📦 템플릿</button>
+                      <button className="btn btn-ghost" style={{ fontSize: 13, padding: '5px 10px' }} onClick={() => openTmplModal(t)}>📦 템플릿 배분</button>
                       <button className="btn btn-ghost" style={{ fontSize: 13, padding: '5px 10px' }} onClick={() => openEdit(t)}>수정</button>
                       <button className="btn btn-danger" style={{ fontSize: 13, padding: '5px 10px' }} onClick={() => remove(t.id)}>삭제</button>
                     </td>
