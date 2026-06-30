@@ -98,7 +98,7 @@ export default function Designers() {
   return (
     <div>
       <div className="ph">
-        <h1>디자이너 관리</h1>
+        <h1>디자이너 관리 <span style={{ fontSize: 15, fontWeight: 400, color: 'var(--text2)', marginLeft: 8 }}>총 {designers.length}명</span></h1>
         <button className="btn btn-primary" onClick={openAdd}>+ 디자이너 추가</button>
       </div>
 
