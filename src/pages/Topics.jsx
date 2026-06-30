@@ -490,9 +490,33 @@ export default function Topics() {
                       )
                     })}
                   </div>
-                  <div style={{ background: '#f8fafc', borderRadius: 8, padding: '8px 14px', marginBottom: 14, fontSize: 13, color: 'var(--text2)' }}>
-                    총 <strong style={{ color: 'var(--text)' }}>{tmplResult.length}개</strong> 템플릿 · 외주 1인 평균 <strong style={{ color: 'var(--text)' }}>{(tmplResult.length / sortedDesigners.length).toFixed(1)}개</strong>
-                  </div>
+                  {(() => {
+                    const target = parseInt(tmplCount) || 0
+                    const current = tmplResult.length
+                    const diff = target - current
+                    if (diff > 0) {
+                      const avg = current / sortedDesigners.length
+                      const belowAvg = sortedDesigners.filter(d => (grouped[d.id] || []).length < Math.ceil(avg))
+                      return (
+                        <div style={{ background: '#fff7ed', border: '1.5px solid #fed7aa', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#9a3412' }}>
+                          ⚠️ <strong>{diff}개 부족</strong> — 아래 외주에게 추가 배정이 필요합니다:&nbsp;
+                          <strong>{belowAvg.length > 0 ? belowAvg.map(d => d.name).join(', ') : sortedDesigners.map(d => d.name).join(', ')}</strong>
+                        </div>
+                      )
+                    }
+                    if (diff < 0) {
+                      return (
+                        <div style={{ background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#991b1b' }}>
+                          ⚠️ <strong>{Math.abs(diff)}개 초과</strong> — 입력한 수보다 많습니다. 일부를 줄여주세요.
+                        </div>
+                      )
+                    }
+                    return (
+                      <div style={{ background: '#f0fdf4', border: '1.5px solid #bbf7d0', borderRadius: 8, padding: '8px 14px', marginBottom: 14, fontSize: 13, color: '#166534' }}>
+                        ✅ 총 <strong>{current}개</strong> 정확히 배분됨 · 외주 1인 평균 <strong>{(current / sortedDesigners.length).toFixed(1)}개</strong>
+                      </div>
+                    )
+                  })()}
                 </>
               )
             })()}
