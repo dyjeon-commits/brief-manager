@@ -196,7 +196,6 @@ export default function Designers() {
             <h2>{editId ? '디자이너 수정' : '디자이너 추가'}</h2>
             {[
               { label: '이름 *', key: 'name', placeholder: '홍길동' },
-              { label: '연락처', key: 'contact', placeholder: '010-0000-0000 또는 이메일' },
               { label: '전문분야', key: 'specialty', placeholder: 'UX/UI, 그래픽, 영상 등' },
             ].map(f => (
               <div key={f.key} className="fg">
