@@ -481,7 +481,7 @@ export default function Topics() {
                   reader.readAsText(file, 'utf-8')
                 }}
               />
-              <label htmlFor="csv-upload" className="btn btn-ghost" style={{ cursor: 'pointer', fontSize: 13 }}>
+              <label htmlFor="csv-upload" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, background: 'white', color: '#475569', border: '2px dashed #94a3b8', borderRadius: 8, padding: '10px 20px', fontSize: 14, fontWeight: 700 }}>
                 📂 CSV 파일 선택
               </label>
             </div>
