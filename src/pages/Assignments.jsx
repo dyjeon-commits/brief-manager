@@ -650,6 +650,11 @@ export default function Assignments() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: dTopics.length > 0 ? 8 : 0 }}>
                           <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>{d.name[0]}</div>
                           <span style={{ fontWeight: 700, fontSize: 13 }}>{d.name}</span>
+                          <div style={{ display: 'flex', gap: 3 }}>
+                            {getDesignerLabelObjs(d.id).map(l => (
+                              <span key={l.id} style={{ background: l.color + '22', color: l.color, padding: '1px 6px', borderRadius: 20, fontSize: 10, fontWeight: 600 }}>{l.name}</span>
+                            ))}
+                          </div>
                           <span style={{ background: dTopics.length > 0 ? 'var(--accent-bg)' : '#f1f5f9', color: dTopics.length > 0 ? 'var(--accent)' : 'var(--text2)', padding: '1px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, marginLeft: 'auto' }}>
                             {dTopics.length}건
                           </span>
