@@ -78,6 +78,24 @@ export default function DesignerView({ token }) {
   const active = assignments.filter(a => a.status !== 'completed')
   const completed = assignments.filter(a => a.status === 'completed')
 
+  // 총 템플릿 수 계산
+  const totalTmpl = assignments.reduce((sum, a) => {
+    const idxList = templateAssignments.filter(tm => String(tm.topic_id) === String(a.topic_id)).map(tm => tm.template_idx)
+    const t = topicMap[String(a.topic_id)]
+    return sum + (idxList.length > 0 ? idxList.length : (t?.qty_per_person || 1))
+  }, 0)
+
+  // 마감일별 그룹 (진행중만)
+  const deadlineGroups = {}
+  active.forEach(a => {
+    const t = topicMap[String(a.topic_id)]
+    if (!t?.deadline) return
+    if (!deadlineGroups[t.deadline]) deadlineGroups[t.deadline] = { count: 0, tmpl: 0 }
+    const idxList = templateAssignments.filter(tm => String(tm.topic_id) === String(a.topic_id))
+    deadlineGroups[t.deadline].count++
+    deadlineGroups[t.deadline].tmpl += idxList.length > 0 ? idxList.length : (t?.qty_per_person || 1)
+  })
+
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
       {/* 헤더 */}
@@ -89,13 +107,17 @@ export default function DesignerView({ token }) {
           <div style={{ fontWeight: 700, fontSize: 17 }}>{designer.name}</div>
           <div style={{ fontSize: 13, color: '#64748b' }}>배정된 기획서 목록</div>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 16, fontSize: 13 }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 20, fontSize: 13 }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontWeight: 700, fontSize: 20, color: '#6366f1' }}>{active.length}</div>
+            <div style={{ fontWeight: 700, fontSize: 22, color: '#6366f1' }}>{totalTmpl}</div>
+            <div style={{ color: '#64748b' }}>총 템플릿</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontWeight: 700, fontSize: 22, color: '#3b82f6' }}>{active.length}</div>
             <div style={{ color: '#64748b' }}>진행중</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontWeight: 700, fontSize: 20, color: '#22c55e' }}>{completed.length}</div>
+            <div style={{ fontWeight: 700, fontSize: 22, color: '#22c55e' }}>{completed.length}</div>
             <div style={{ color: '#64748b' }}>완료</div>
           </div>
         </div>
@@ -115,6 +137,32 @@ export default function DesignerView({ token }) {
           </div>
         )}
 
+        {/* 총 제작 수량 요약 */}
+        {Object.keys(deadlineGroups).length > 0 && (
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>
+              📦 총 제작 수량
+            </div>
+            <div style={{ background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 12, padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {Object.entries(deadlineGroups).sort((a, b) => new Date(a[0]) - new Date(b[0])).map(([deadline, { tmpl }]) => {
+                const today = new Date(); today.setHours(0,0,0,0)
+                const d = new Date(deadline); d.setHours(0,0,0,0)
+                const diff = Math.round((d - today) / (1000*60*60*24))
+                const isPast = diff < 0
+                const label = diff === 0 ? '오늘' : isPast ? `D+${Math.abs(diff)}` : `D-${diff}`
+                const color = isPast ? '#ef4444' : diff <= 3 ? '#f59e0b' : '#6366f1'
+                return (
+                  <div key={deadline} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color, minWidth: 40 }}>{label}</span>
+                    <span style={{ fontSize: 13, color: '#475569' }}>마감일 {deadline}</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 15, fontWeight: 700, color }}>총 {tmpl}개</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* 기획서 목록 */}
         {assignments.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8' }}>
@@ -126,7 +174,7 @@ export default function DesignerView({ token }) {
             {active.length > 0 && (
               <div style={{ marginBottom: 32 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>진행중 ({active.length})</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
                   {active.map(a => <AssignmentCard key={a.id} a={a} t={topicMap[String(a.topic_id)]} tmplIdxList={templateAssignments.filter(tm => String(tm.topic_id) === String(a.topic_id)).map(tm => tm.template_idx).sort((x,y)=>x-y)} />)}
                 </div>
               </div>
@@ -198,16 +246,18 @@ function AssignmentCard({ a, t, tmplIdxList = [] }) {
             {t?.type && <span style={{ background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 500 }}>{t.type}</span>}
             {t?.deadline && (
               <span style={{ color: isOverdue ? '#dc2626' : '#64748b', fontWeight: isOverdue ? 700 : 400 }}>
-                📅 {t.deadline}{isOverdue ? ' (마감초과)' : ''}
+                📅 마감일 {t.deadline}{isOverdue ? ' (마감초과)' : ''}
               </span>
             )}
-            {t?.pages && <span>📄 {t.pages}p</span>}
+            {t?.pages && <span>📄 페이지 수 {t.pages}p</span>}
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
-          <span style={{ background: (STATUS_COLOR[status] || '#94a3b8') + '22', color: STATUS_COLOR[status] || '#94a3b8', padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600 }}>
-            {STATUS_LABEL[status] || status}
-          </span>
+          {status !== 'not_submitted' && status !== 'assigned' && (
+            <span style={{ background: (STATUS_COLOR[status] || '#94a3b8') + '22', color: STATUS_COLOR[status] || '#94a3b8', padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600 }}>
+              {STATUS_LABEL[status] || status}
+            </span>
+          )}
           {t?.brief_url && (
             <a href={t.brief_url} target="_blank" rel="noreferrer"
               style={{ background: '#6366f1', color: 'white', padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
@@ -216,16 +266,24 @@ function AssignmentCard({ a, t, tmplIdxList = [] }) {
           )}
         </div>
       </div>
-      {tmplIdxList.length > 0 && (
-        <div style={{ marginTop: 12, padding: '10px 14px', background: '#f1f5f9', borderRadius: 8 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>📐 담당 템플릿</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {tmplIdxList.map(idx => (
-              <span key={idx} style={{ background: 'white', border: '1px solid #cbd5e1', borderRadius: 5, padding: '2px 8px', fontSize: 12, color: '#334155', fontWeight: 600 }}>idx {idx}</span>
-            ))}
-          </div>
+      <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+        <div style={{ padding: '10px 16px', background: '#dbeafe', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 72 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8' }}>총 제작 수량</span>
+          <span style={{ fontSize: 20, fontWeight: 800, color: '#2563eb' }}>
+            {tmplIdxList.length > 0 ? tmplIdxList.length : (t?.qty_per_person || 1)}개
+          </span>
         </div>
-      )}
+        {tmplIdxList.length > 0 && (
+          <div style={{ flex: 1, padding: '10px 14px', background: '#f1f5f9', borderRadius: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>📐 담당 템플릿</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {tmplIdxList.map(idx => (
+                <span key={idx} style={{ background: 'white', border: '1px solid #cbd5e1', borderRadius: 5, padding: '2px 8px', fontSize: 12, color: '#334155', fontWeight: 600 }}>idx {idx}</span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
       {t?.notice && (
         <div style={{ marginTop: 12, padding: '10px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, fontSize: 13, color: '#78350f', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
           📌 {t.notice}

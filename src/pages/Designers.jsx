@@ -87,7 +87,10 @@ export default function Designers() {
     return 99
   }
 
-  const sortedDesigners = [...designers].sort((a, b) => getDesignerGrade(a.id) - getDesignerGrade(b.id))
+  const sortedDesigners = [...designers].sort((a, b) => {
+    const gd = getDesignerGrade(a.id) - getDesignerGrade(b.id)
+    return gd !== 0 ? gd : a.name.localeCompare(b.name, 'ko')
+  })
 
   function toggleLabel(id) {
     setSelectedLabels(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id])

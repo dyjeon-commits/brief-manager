@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { getAll, addAssignment, deleteAssignment, updateAssignmentStatus } from '../api'
 import { useAuth } from '../AuthContext'
+import { supabase } from '../AuthContext'
 
 const STATUS_COLUMNS = [
   { value: 'not_submitted', label: '제출 안함', color: '#94a3b8', bg: '#f1f5f9' },
@@ -29,6 +30,7 @@ export default function Assignments() {
   const [autoSuggestions, setAutoSuggestions] = useState([])
   const [selectedAuto, setSelectedAuto] = useState([])
   const [autoTopicId, setAutoTopicId] = useState(null)
+  const [templateAssignments, setTemplateAssignments] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [viewMode, setViewMode] = useState('table')
@@ -50,6 +52,13 @@ export default function Assignments() {
     setLabels(data.labels || [])
     setDesignerLabels(data.designerLabels || [])
     setTopicLabels(data.topicLabels || [])
+
+    if (data.designers?.length > 0) {
+      const { data: tmpl } = await supabase.from('template_assignments').select('*')
+        .in('designer_id', data.designers.map(d => d.id))
+      setTemplateAssignments(tmpl || [])
+    }
+
     setLoading(false)
   }
 
@@ -118,7 +127,13 @@ export default function Assignments() {
   const filtered = assignments.filter(a => {
     if (filterDesigner !== 'all' && String(a.designer_id) !== String(filterDesigner)) return false
     return true
-  }).sort((a, b) => getDesignerGrade(a.designer_id) - getDesignerGrade(b.designer_id))
+  }).sort((a, b) => {
+    const gd = getDesignerGrade(a.designer_id) - getDesignerGrade(b.designer_id)
+    if (gd !== 0) return gd
+    const da = designerMap[String(a.designer_id)]
+    const db = designerMap[String(b.designer_id)]
+    return (da?.name || '').localeCompare(db?.name || '', 'ko')
+  })
 
   const isOverdue = a => {
     const t = topicMap[String(a.topic_id)]
@@ -369,52 +384,91 @@ export default function Assignments() {
         <div className="card" style={{ overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr>{['디자이너', '작업주제', '타입', '기획서', '마감일', '총 페이지', '상태', ''].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
+              <tr>{['디자이너', '작업주제', '타입', '기획서', '마감일', '총 페이지', '총 템플릿', '상태', ''].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
             </thead>
             <tbody>
-              {filtered.map(a => {
-                const t = topicMap[String(a.topic_id)]
-                const d = designerMap[String(a.designer_id)]
-                const overdue = isOverdue(a)
-                const statusInfo = STATUS_MAP[a.status] || STATUS_MAP['not_submitted']
-                return (
-                  <tr key={a.id} style={{ background: overdue ? '#fff5f5' : undefined }}>
-                    <td style={tdStyle}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
-                          {d?.name?.[0] || '?'}
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 500 }}>{d?.name || '알 수 없음'}</div>
-                          <div style={{ display: 'flex', gap: 3, marginTop: 2 }}>
-                            {getDesignerLabelObjs(a.designer_id).map(l => (
-                              <span key={l.id} style={{ background: l.color + '22', color: l.color, padding: '1px 6px', borderRadius: 20, fontSize: 10, fontWeight: 600 }}>{l.name}</span>
-                            ))}
+              {(() => {
+                // group by designer preserving grade sort
+                const designerIds = []
+                const groups = {}
+                filtered.forEach(a => {
+                  const did = String(a.designer_id)
+                  if (!groups[did]) { groups[did] = []; designerIds.push(did) }
+                  groups[did].push(a)
+                })
+                const rows = []
+                designerIds.forEach(did => {
+                  const aList = groups[did]
+                  aList.forEach(a => {
+                    const t = topicMap[String(a.topic_id)]
+                    const d = designerMap[String(a.designer_id)]
+                    const overdue = isOverdue(a)
+                    const statusInfo = STATUS_MAP[a.status] || STATUS_MAP['not_submitted']
+                    rows.push(
+                      <tr key={a.id} style={{ background: overdue ? '#fff5f5' : undefined }}>
+                        <td style={tdStyle}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
+                              {d?.name?.[0] || '?'}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 500 }}>{d?.name || '알 수 없음'}</div>
+                              <div style={{ display: 'flex', gap: 3, marginTop: 2 }}>
+                                {getDesignerLabelObjs(a.designer_id).map(l => (
+                                  <span key={l.id} style={{ background: l.color + '22', color: l.color, padding: '1px 6px', borderRadius: 20, fontSize: 10, fontWeight: 600 }}>{l.name}</span>
+                                ))}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ ...tdStyle, fontWeight: 500 }}>{t?.name || '-'}</td>
-                    <td style={tdStyle}>{t?.type && <span style={{ background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500 }}>{t.type}</span>}</td>
-                    <td style={tdStyle}>{t?.brief_url ? <a href={t.brief_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>열기 →</a> : '-'}</td>
-                    <td style={{ ...tdStyle, color: overdue ? 'var(--danger)' : undefined }}>
-                      {t?.deadline || '-'}
-                      {overdue && <span style={{ marginLeft: 6, fontSize: 11, background: '#fee2e2', color: 'var(--danger)', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>초과</span>}
-                    </td>
-                    <td style={tdStyle}>{t?.pages ? `${t.pages}p` : '-'}</td>
-                    <td style={tdStyle}>
-                      <select style={{ padding: '5px 8px', border: `1.5px solid ${statusInfo.color}`, borderRadius: 7, background: statusInfo.bg, fontSize: 12, cursor: 'pointer', color: statusInfo.color, fontWeight: 600 }}
-                        value={a.status || 'not_submitted'} onChange={async e => { await updateAssignmentStatus(a.id, e.target.value); load() }}>
-                        {STATUS_COLUMNS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                      </select>
-                    </td>
-                    <td style={tdStyle}>
-                      <button className="btn btn-danger" style={{ fontSize: 12, padding: '4px 10px' }}
-                        onClick={async () => { if (confirm('배정을 삭제할까요?')) { await deleteAssignment(a.id); load() } }}>삭제</button>
-                    </td>
-                  </tr>
-                )
-              })}
+                        </td>
+                        <td style={{ ...tdStyle, fontWeight: 500 }}>{t?.name || '-'}</td>
+                        <td style={tdStyle}>{t?.type && <span style={{ background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500 }}>{t.type}</span>}</td>
+                        <td style={tdStyle}>{t?.brief_url ? <a href={t.brief_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>열기 →</a> : '-'}</td>
+                        <td style={{ ...tdStyle, color: overdue ? 'var(--danger)' : undefined }}>
+                          {t?.deadline || '-'}
+                          {overdue && <span style={{ marginLeft: 6, fontSize: 11, background: '#fee2e2', color: 'var(--danger)', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>초과</span>}
+                        </td>
+                        <td style={tdStyle}>{t?.pages ? `${t.pages}p` : '-'}</td>
+                        <td style={{ ...tdStyle, fontWeight: 600, color: '#6366f1' }}>
+                          {(() => {
+                            const tmplCount = templateAssignments.filter(ta => String(ta.designer_id) === String(a.designer_id) && String(ta.topic_id) === String(a.topic_id)).length
+                            const qty = tmplCount > 0 ? tmplCount : (t?.qty_per_person || 1)
+                            return `${qty}개`
+                          })()}
+                        </td>
+                        <td style={tdStyle}>
+                          <select style={{ padding: '5px 8px', border: `1.5px solid ${statusInfo.color}`, borderRadius: 7, background: statusInfo.bg, fontSize: 12, cursor: 'pointer', color: statusInfo.color, fontWeight: 600 }}
+                            value={a.status || 'not_submitted'} onChange={async e => { await updateAssignmentStatus(a.id, e.target.value); load() }}>
+                            {STATUS_COLUMNS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                          </select>
+                        </td>
+                        <td style={tdStyle}>
+                          <button className="btn btn-danger" style={{ fontSize: 12, padding: '4px 10px' }}
+                            onClick={async () => { if (confirm('배정을 삭제할까요?')) { await deleteAssignment(a.id); load() } }}>삭제</button>
+                        </td>
+                      </tr>
+                    )
+                  })
+                  // subtotal row
+                  const totalWork = aList.reduce((sum, a) => {
+                    const t = topicMap[String(a.topic_id)]
+                    const tmplCount = templateAssignments.filter(ta => String(ta.designer_id) === did && String(ta.topic_id) === String(a.topic_id)).length
+                    return sum + (tmplCount > 0 ? tmplCount : (t?.qty_per_person || 1))
+                  }, 0)
+                  const d = designerMap[did]
+                  rows.push(
+                    <tr key={`sub-${did}`} style={{ background: '#f8fafc', borderTop: '2px solid var(--border)' }}>
+                      <td colSpan={7} style={{ ...tdStyle, fontSize: 12, color: 'var(--text2)', borderBottom: '2px solid #cbd5e1' }}>
+                        <span style={{ fontWeight: 700, color: '#334155' }}>{d?.name}</span> 소계 —&nbsp;
+                        총 <strong style={{ color: '#6366f1' }}>{aList.length}건</strong> 배정,&nbsp;
+                        총 템플릿 <strong style={{ color: '#0891b2' }}>{totalWork}개</strong>
+                      </td>
+                      <td style={{ ...tdStyle, borderBottom: '2px solid #cbd5e1' }} />
+                    </tr>
+                  )
+                })
+                return rows
+              })()}
             </tbody>
           </table>
         </div>

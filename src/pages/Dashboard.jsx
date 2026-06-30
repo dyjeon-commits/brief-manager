@@ -42,11 +42,13 @@ function NoticeAccordion({ n, onEdit, onDelete }) {
 }
 import { getAll, getNotices, addNotice, updateNotice, deleteNotice } from '../api'
 import { useAuth } from '../AuthContext'
+import { supabase } from '../AuthContext'
 
 export default function Dashboard({ onNavigate }) {
   const { profile } = useAuth()
   const [data, setData] = useState({ designers: [], topics: [], assignments: [] })
   const [notices, setNotices] = useState([])
+  const [templateAssignments, setTemplateAssignments] = useState([])
   const [loading, setLoading] = useState(true)
   const [noticeModal, setNoticeModal] = useState(false)
   const [noticeForm, setNoticeForm] = useState({ title: '', content: '' })
@@ -68,6 +70,14 @@ export default function Dashboard({ onNavigate }) {
     ])
     setData(d)
     setNotices(n)
+
+    // fetch template_assignments for workload calc
+    if (d.designers?.length > 0) {
+      const { data: tmpl } = await supabase.from('template_assignments').select('*')
+        .in('designer_id', d.designers.map(x => x.id))
+      setTemplateAssignments(tmpl || [])
+    }
+
     setLoading(false)
   }
 
@@ -119,8 +129,14 @@ export default function Dashboard({ onNavigate }) {
   const { designers, topics, assignments, labels = [], designerLabels = [] } = data
   const topicMap = Object.fromEntries(topics.map(t => [String(t.id), t]))
 
+  const totalTemplates = assignments.reduce((sum, a) => {
+    const t = topicMap[String(a.topic_id)]
+    const tmplCount = templateAssignments.filter(ta => String(ta.designer_id) === String(a.designer_id) && String(ta.topic_id) === String(a.topic_id)).length
+    return sum + (tmplCount > 0 ? tmplCount : (t?.qty_per_person || 1))
+  }, 0)
+
   const stats = {
-    total:      assignments.length,
+    total:      totalTemplates,
     inprogress: assignments.filter(a => a.status === 'inprogress').length,
     completed:  assignments.filter(a => a.status === 'completed').length,
     overdue:    assignments.filter(a => {
@@ -140,17 +156,28 @@ export default function Dashboard({ onNavigate }) {
     return 10
   }
 
-  const byDesigner = designers.map(d => ({
-    ...d,
-    total:      assignments.filter(a => String(a.designer_id) === String(d.id)).length,
-    inprogress: assignments.filter(a => String(a.designer_id) === String(d.id) && a.status !== 'completed').length,
-    grade:      getDesignerGrade(d.id),
-  })).sort((a, b) => a.grade !== b.grade ? a.grade - b.grade : b.inprogress - a.inprogress)
+  const byDesigner = designers.map(d => {
+    const myAssignments = assignments.filter(a => String(a.designer_id) === String(d.id))
+    const totalWork = myAssignments.reduce((sum, a) => {
+      const t = topicMap[String(a.topic_id)]
+      const tmplCount = templateAssignments.filter(ta => String(ta.designer_id) === String(d.id) && String(ta.topic_id) === String(a.topic_id)).length
+      return sum + (tmplCount > 0 ? tmplCount : (t?.qty_per_person || 1))
+    }, 0)
+    return {
+      ...d,
+      total:      myAssignments.length,
+      inprogress: myAssignments.filter(a => a.status !== 'completed').length,
+      totalWork,
+      grade:      getDesignerGrade(d.id),
+    }
+  }).sort((a, b) => a.grade !== b.grade ? a.grade - b.grade : a.name.localeCompare(b.name, 'ko'))
 
-  const byTopic = topics.map(t => ({
-    ...t,
-    count: assignments.filter(a => String(a.topic_id) === String(t.id)).length,
-  })).filter(t => t.count > 0).sort((a, b) => b.count - a.count)
+  const byTopic = topics.map(t => {
+    const count = assignments.filter(a => String(a.topic_id) === String(t.id)).length
+    const tmplCount = templateAssignments.filter(ta => String(ta.topic_id) === String(t.id)).length
+    const totalWork = tmplCount > 0 ? tmplCount : count * (t.qty_per_person || 1)
+    return { ...t, count, totalWork, isTmpl: tmplCount > 0 }
+  }).filter(t => t.count > 0).sort((a, b) => b.count - a.count)
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--text2)', fontSize: 15 }}>
@@ -164,7 +191,7 @@ export default function Dashboard({ onNavigate }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 28 }}>
         {[
-          { label: '전체 배정', value: stats.total,      accent: '#6366f1' },
+          { label: '총 예상 템플릿 수', value: stats.total,      accent: '#6366f1' },
           { label: '진행중',    value: stats.inprogress, accent: '#3b82f6' },
           { label: '완료',      value: stats.completed,  accent: '#22c55e' },
           { label: '마감초과',  value: stats.overdue,    accent: '#ef4444' },
@@ -211,9 +238,9 @@ export default function Dashboard({ onNavigate }) {
                   <div style={{ fontWeight: 600 }}>{d.name}</div>
                   <div style={{ fontSize: 12, color: 'var(--text2)' }}>{d.specialty || ''}</div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)' }}>{d.inprogress}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text2)' }}>진행중 / 전체 {d.total}</div>
+                <div style={{ textAlign: 'right', fontSize: 12 }}>
+                  <div style={{ color: 'var(--text2)' }}>배정 주제 <strong style={{ color: 'var(--text)', fontSize: 13 }}>{d.total}개</strong></div>
+                  <div style={{ color: 'var(--text2)', marginTop: 2 }}>총 템플릿 <strong style={{ color: 'var(--accent)', fontSize: 13 }}>{d.totalWork}개</strong></div>
                 </div>
               </div>
             ))
@@ -236,9 +263,9 @@ export default function Dashboard({ onNavigate }) {
                     {[t.deadline && `마감 ${t.deadline}`, t.pages && `${t.pages}p`].filter(Boolean).join(' · ')}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: '#3b82f6' }}>{t.count}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text2)' }}>명 배정</div>
+                <div style={{ textAlign: 'right', fontSize: 12 }}>
+                  <div style={{ color: 'var(--text2)' }}>배정 인원 <strong style={{ color: 'var(--text)', fontSize: 13 }}>{t.count}명</strong></div>
+                  <div style={{ color: 'var(--text2)', marginTop: 2 }}>총 템플릿 <strong style={{ color: '#6366f1', fontSize: 13 }}>{t.totalWork}개</strong></div>
                 </div>
               </div>
             ))

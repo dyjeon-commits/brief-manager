@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { getAll, addTopic, updateTopic, deleteTopic, setTopicLabels, getTemplateAssignments, setTemplateAssignments } from '../api'
+import { supabase } from '../AuthContext'
 import { useAuth } from '../AuthContext'
 
 const TYPE_OPTIONS = [
@@ -7,7 +8,7 @@ const TYPE_OPTIONS = [
   '유튜브 썸네일', '카드뉴스', '인포그래픽', '기타',
 ]
 
-const EMPTY = { name: '', briefUrl: '', type: '', type2: '', deadline: '', pages: '', notice: '' }
+const EMPTY = { name: '', briefUrl: '', type: '', type2: '', deadline: '', pages: '', notice: '', qtyPerPerson: '1' }
 
 export default function Topics() {
   const { profile } = useAuth()
@@ -33,6 +34,7 @@ export default function Topics() {
   const [tmplResult, setTmplResult] = useState([]) // [{templateIdx, designerId}]
   const [tmplAllIdxs, setTmplAllIdxs] = useState([]) // 원본 전체 idx 목록
   const [tmplSaving, setTmplSaving] = useState(false)
+  const [tmplCountsPerTopic, setTmplCountsPerTopic] = useState({}) // topicId → count
 
   useEffect(() => { if (profile) load() }, [profile])
 
@@ -45,12 +47,22 @@ export default function Topics() {
     setTopicLabelsState(data.topicLabels || [])
     setDesigners(data.designers || [])
     setDesignerLabels(data.designerLabels || [])
+
+    // fetch template_assignment counts per topic
+    if (data.topics?.length > 0) {
+      const { data: tmplRows } = await supabase.from('template_assignments').select('topic_id')
+        .in('topic_id', data.topics.map(t => t.id))
+      const counts = {}
+      ;(tmplRows || []).forEach(r => { counts[r.topic_id] = (counts[r.topic_id] || 0) + 1 })
+      setTmplCountsPerTopic(counts)
+    }
+
     setLoading(false)
   }
 
   function openAdd() { setForm(EMPTY); setSelectedLabels([]); setEditId(null); setModal(true) }
   function openEdit(t) {
-    setForm({ name: t.name, briefUrl: t.brief_url || '', type: t.type || '', type2: t.type2 || '', deadline: t.deadline || '', pages: t.pages || '', notice: t.notice || '' })
+    setForm({ name: t.name, briefUrl: t.brief_url || '', type: t.type || '', type2: t.type2 || '', deadline: t.deadline || '', pages: t.pages || '', notice: t.notice || '', qtyPerPerson: t.qty_per_person || '1' })
     const myLabels = topicLabels.filter(tl => tl.topic_id === t.id).map(tl => tl.label_id)
     setSelectedLabels(myLabels)
     setEditId(t.id); setModal(true)
@@ -124,7 +136,10 @@ export default function Topics() {
     return 99
   }
 
-  const sortedDesigners = [...designers].sort((a, b) => getDesignerGrade(a.id) - getDesignerGrade(b.id))
+  const sortedDesigners = [...designers].sort((a, b) => {
+    const gd = getDesignerGrade(a.id) - getDesignerGrade(b.id)
+    return gd !== 0 ? gd : a.name.localeCompare(b.name, 'ko')
+  })
 
   function runTmplAuto() {
     const n = parseInt(tmplCount)
@@ -263,7 +278,7 @@ export default function Topics() {
                 <th style={{ ...thStyle, width: 40, textAlign: 'center' }}>
                   <input type="checkbox" checked={topics.length > 0 && checkedIds.length === topics.length} onChange={toggleAll} style={{ cursor: 'pointer', width: 15, height: 15 }} />
                 </th>
-                {['주제명', '라벨', '타입', '기획서 링크', '마감일', '총 페이지', '배정 수', ''].map(h => <th key={h} style={thStyle}>{h}</th>)}
+                {['주제명', '라벨', '타입', '기획서 링크', '마감일', '총 페이지', '배정 수', '총 템플릿', ''].map(h => <th key={h} style={thStyle}>{h}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -297,8 +312,23 @@ export default function Topics() {
                     <td style={tdStyle}>
                       <span style={{ background: 'var(--accent-bg)', color: 'var(--accent)', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 600 }}>{countFor(t.id)}명</span>
                     </td>
+                    <td style={{ ...tdStyle, fontSize: 13, fontWeight: 600 }}>
+                      {(() => {
+                        const tmplCount = tmplCountsPerTopic[t.id] || 0
+                        if (tmplCount > 0) return <span style={{ color: '#0891b2' }}>{tmplCount}개</span>
+                        const assignedCount = countFor(t.id)
+                        const qty = t.qty_per_person || 1
+                        if (assignedCount === 0) return <span style={{ color: 'var(--text2)' }}>-</span>
+                        return <span style={{ color: '#0891b2' }}>{assignedCount * qty}개</span>
+                      })()}
+                    </td>
                     <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
-                      <button className="btn btn-ghost" style={{ fontSize: 13, padding: '5px 10px' }} onClick={() => openTmplModal(t)}>📦 템플릿 배분</button>
+                      <button onClick={() => openTmplModal(t)} style={{ fontSize: 13, padding: '5px 10px', borderRadius: 7, cursor: 'pointer', border: 'none', fontWeight: 600,
+                        background: tmplCountsPerTopic[t.id] > 0 ? '#6366f1' : 'var(--surface)',
+                        color: tmplCountsPerTopic[t.id] > 0 ? 'white' : 'var(--text2)',
+                        border: tmplCountsPerTopic[t.id] > 0 ? 'none' : '1.5px solid var(--border)' }}>
+                        {tmplCountsPerTopic[t.id] > 0 ? '📦 템플릿 배분 ✓' : '📦 템플릿 배분'}
+                      </button>
                       <button className="btn btn-ghost" style={{ fontSize: 13, padding: '5px 10px' }} onClick={() => openEdit(t)}>수정</button>
                       <button className="btn btn-danger" style={{ fontSize: 13, padding: '5px 10px' }} onClick={() => remove(t.id)}>삭제</button>
                     </td>
@@ -378,6 +408,15 @@ export default function Topics() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="fg"><label>디자인 마감일</label><input type="date" value={form.deadline} onChange={e => setForm(p => ({ ...p, deadline: e.target.value }))} /></div>
               <div className="fg"><label>총 제작 페이지</label><input type="number" value={form.pages} onChange={e => setForm(p => ({ ...p, pages: e.target.value }))} placeholder="예: 20" min="1" /></div>
+            </div>
+            <div className="fg">
+              <label>인당 템플릿 수 (qty_per_person)</label>
+              <input type="number" min={1} value={form.qtyPerPerson}
+                onChange={e => setForm(p => ({ ...p, qtyPerPerson: e.target.value }))}
+                placeholder="1" style={{ width: '100%' }} />
+              <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 4 }}>
+                템플릿 배분 주제는 자동 계산됩니다. 일반 주제는 여기에 입력한 수 × 배정 인원 = 총 템플릿.
+              </div>
             </div>
             {labels.filter(l => !l.parent_id).length > 0 && (
               <div className="fg">

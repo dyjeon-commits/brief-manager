@@ -43,6 +43,18 @@ export async function updateDesigner(data) {
   const { id, ...rest } = data
   await supabase.from('designers').update(rest).eq('id', id)
 }
+
+// Template assignments
+export async function getTemplateAssignments(topicId) {
+  const { data } = await supabase.from('template_assignments').select('*').eq('topic_id', topicId).order('template_idx')
+  return data || []
+}
+export async function setTemplateAssignments(topicId, assignments) {
+  await supabase.from('template_assignments').delete().eq('topic_id', topicId)
+  if (assignments.length > 0) {
+    await supabase.from('template_assignments').insert(assignments.map(a => ({ topic_id: topicId, template_idx: a.templateIdx, designer_id: a.designerId })))
+  }
+}
 export async function deleteDesigner(id) {
   await supabase.from('designers').delete().eq('id', id)
 }
@@ -56,6 +68,7 @@ export async function addTopic(data, pmId) {
     deadline: data.deadline || null,
     pages: data.pages ? parseInt(data.pages) : null,
     notice: data.notice || null,
+    qty_per_person: data.qtyPerPerson ? parseInt(data.qtyPerPerson) : 1,
     pm_id: pmId,
   }).select().single()
   return result
@@ -70,9 +83,13 @@ export async function updateTopic(data) {
     deadline: rest.deadline || null,
     pages: rest.pages ? parseInt(rest.pages) : null,
     notice: rest.notice || null,
+    qty_per_person: rest.qtyPerPerson ? parseInt(rest.qtyPerPerson) : 1,
   }).eq('id', id)
 }
 export async function deleteTopic(id) {
+  await supabase.from('template_assignments').delete().eq('topic_id', id)
+  await supabase.from('assignments').delete().eq('topic_id', id)
+  await supabase.from('topic_labels').delete().eq('topic_id', id)
   await supabase.from('topics').delete().eq('id', id)
 }
 
