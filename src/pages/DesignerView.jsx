@@ -221,7 +221,7 @@ function AssignmentCard({ a, t, tmplIdxList = [] }) {
           <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>📐 담당 템플릿</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {tmplIdxList.map(idx => (
-              <span key={idx} style={{ background: 'white', border: '1px solid #cbd5e1', borderRadius: 5, padding: '2px 8px', fontSize: 12, color: '#334155', fontWeight: 600 }}>#{idx}</span>
+              <span key={idx} style={{ background: 'white', border: '1px solid #cbd5e1', borderRadius: 5, padding: '2px 8px', fontSize: 12, color: '#334155', fontWeight: 600 }}>idx {idx}</span>
             ))}
           </div>
         </div>
