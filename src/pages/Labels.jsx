@@ -18,6 +18,7 @@ export default function Labels() {
   const [editId, setEditId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [checkedIds, setCheckedIds] = useState([])
 
   useEffect(() => { if (profile) load() }, [profile])
 
@@ -77,11 +78,26 @@ export default function Labels() {
 
   const parentLabel = parentId ? labels.find(l => l.id === parentId) : null
 
+  async function removeChecked() {
+    if (!confirm(`선택한 카테고리 ${checkedIds.length}개를 삭제할까요? 하위 라벨도 함께 삭제됩니다.`)) return
+    for (const id of checkedIds) await deleteLabel(id)
+    setCheckedIds([]); load()
+  }
+
+  function toggleCheck(id) {
+    setCheckedIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id])
+  }
+
   return (
     <div>
       <div className="ph">
         <h1>라벨 관리</h1>
-        <button className="btn btn-primary" onClick={openAddCategory}>+ 카테고리 추가</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {checkedIds.length > 0 && (
+            <button className="btn btn-danger" onClick={removeChecked}>🗑 {checkedIds.length}개 삭제</button>
+          )}
+          <button className="btn btn-primary" onClick={openAddCategory}>+ 카테고리 추가</button>
+        </div>
       </div>
       <p style={{ color: 'var(--text2)', fontSize: 13, marginBottom: 20 }}>
         카테고리를 만들고 하위 라벨을 추가하세요. 디자이너·작업주제에 붙이면 자동 매칭에 활용됩니다.
@@ -94,14 +110,16 @@ export default function Labels() {
           <button className="btn btn-primary" onClick={openAddCategory}>첫 카테고리 추가하기</button>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
           {categories.map(cat => {
             const children = childrenOf(cat.id)
+            const isChecked = checkedIds.includes(cat.id)
             return (
-              <div key={cat.id} className="card" style={{ padding: 20, borderLeft: `4px solid ${cat.color}` }}>
+              <div key={cat.id} className="card" style={{ padding: 20, borderLeft: `4px solid ${cat.color}`, background: isChecked ? 'var(--accent-bg)' : undefined }}>
                 {/* 카테고리 헤더 */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input type="checkbox" checked={isChecked} onChange={() => toggleCheck(cat.id)} style={{ width: 15, height: 15, cursor: 'pointer', flexShrink: 0 }} />
                     <span style={{ background: cat.color + '22', color: cat.color, padding: '5px 14px', borderRadius: 20, fontWeight: 700, fontSize: 15 }}>{cat.name}</span>
                     <span style={{ fontSize: 12, color: 'var(--text2)' }}>하위 {children.length}개</span>
                   </div>
