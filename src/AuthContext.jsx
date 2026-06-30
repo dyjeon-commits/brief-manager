@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
+export const supabase = createClient(
   'https://kstvoyhhrqvpbeadyzbx.supabase.co',
   'sb_publishable_7ppkQFYB3qYlXnrSVo-zyg_JEOi6iW-'
 )
