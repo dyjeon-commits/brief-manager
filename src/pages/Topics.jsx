@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { getAll, addTopic, updateTopic, deleteTopic, setTopicLabels } from '../api'
+import { getAll, addTopic, updateTopic, deleteTopic, setTopicLabels, getTemplateAssignments, setTemplateAssignments } from '../api'
 import { useAuth } from '../AuthContext'
 
 const TYPE_OPTIONS = [
@@ -24,6 +24,14 @@ export default function Topics() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [checkedIds, setCheckedIds] = useState([])
+  const [designers, setDesigners] = useState([])
+  const [designerLabels, setDesignerLabels] = useState([])
+  // 템플릿 배분 모달
+  const [tmplModal, setTmplModal] = useState(false)
+  const [tmplTopic, setTmplTopic] = useState(null)
+  const [tmplCount, setTmplCount] = useState('')
+  const [tmplResult, setTmplResult] = useState([]) // [{templateIdx, designerId}]
+  const [tmplSaving, setTmplSaving] = useState(false)
 
   useEffect(() => { if (profile) load() }, [profile])
 
@@ -34,6 +42,8 @@ export default function Topics() {
     setAssignments(data.assignments || [])
     setLabels(data.labels || [])
     setTopicLabelsState(data.topicLabels || [])
+    setDesigners(data.designers || [])
+    setDesignerLabels(data.designerLabels || [])
     setLoading(false)
   }
 
@@ -83,6 +93,64 @@ export default function Topics() {
   }
 
   const countFor = id => assignments.filter(a => String(a.topic_id) === String(id)).length
+
+  // 템플릿 배분
+  async function openTmplModal(topic) {
+    setTmplTopic(topic)
+    setTmplCount('')
+    const existing = await getTemplateAssignments(topic.id)
+    if (existing.length > 0) {
+      setTmplResult(existing.map(e => ({ templateIdx: e.template_idx, designerId: e.designer_id })))
+      setTmplCount(existing.length)
+    } else {
+      setTmplResult([])
+    }
+    setTmplModal(true)
+  }
+
+  function getDesignerLabelIds(did) {
+    return designerLabels.filter(dl => String(dl.designer_id) === String(did)).map(dl => dl.label_id)
+  }
+
+  function runTmplAuto() {
+    const n = parseInt(tmplCount)
+    if (!n || n < 1) return
+    const m = designers.length
+    if (m === 0) return
+
+    const base = Math.floor(n / m)
+    const remainder = n % m
+
+    // A등급 디자이너 (라벨 있는 디자이너, 없으면 전체)
+    const graded = designers.filter(d => getDesignerLabelIds(d.id).length > 0)
+    const aGraders = graded.length > 0 ? graded : designers
+
+    // 각 디자이너에게 배정할 수
+    const counts = {}
+    designers.forEach(d => { counts[d.id] = base })
+    // 나머지는 A등급 순서대로
+    for (let i = 0; i < remainder; i++) {
+      counts[aGraders[i % aGraders.length].id]++
+    }
+
+    // 템플릿 idx 배분
+    const result = []
+    let idx = 1
+    for (const d of designers) {
+      for (let i = 0; i < counts[d.id]; i++) {
+        result.push({ templateIdx: idx++, designerId: d.id })
+      }
+    }
+    setTmplResult(result)
+  }
+
+  async function saveTmplAssignments() {
+    if (!tmplTopic || tmplResult.length === 0) return
+    setTmplSaving(true)
+    await setTemplateAssignments(tmplTopic.id, tmplResult)
+    setTmplSaving(false)
+    setTmplModal(false)
+  }
 
   const getTopicLabelObjs = (id) => {
     const labelIds = topicLabels.filter(tl => tl.topic_id === id).map(tl => tl.label_id)
@@ -214,6 +282,7 @@ export default function Topics() {
                       <span style={{ background: 'var(--accent-bg)', color: 'var(--accent)', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 600 }}>{countFor(t.id)}명</span>
                     </td>
                     <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                      <button className="btn btn-ghost" style={{ fontSize: 13, padding: '5px 10px' }} onClick={() => openTmplModal(t)}>📦 템플릿</button>
                       <button className="btn btn-ghost" style={{ fontSize: 13, padding: '5px 10px' }} onClick={() => openEdit(t)}>수정</button>
                       <button className="btn btn-danger" style={{ fontSize: 13, padding: '5px 10px' }} onClick={() => remove(t.id)}>삭제</button>
                     </td>
@@ -333,6 +402,73 @@ export default function Topics() {
             <div className="ma">
               <button className="btn btn-ghost" onClick={() => setModal(false)}>취소</button>
               <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중...' : editId ? '저장' : '추가'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {tmplModal && tmplTopic && (
+        <div className="overlay" onClick={() => setTmplModal(false)}>
+          <div className="modal" style={{ width: 560 }} onClick={e => e.stopPropagation()}>
+            <h2>📦 템플릿 배분 — {tmplTopic.name}</h2>
+            <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 16 }}>
+              템플릿 수를 입력하면 외주 {designers.length}명에게 균등 배분합니다. 나머지는 A등급 외주에게 우선 배정됩니다.
+            </p>
+
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 16 }}>
+              <div className="fg" style={{ flex: 1, margin: 0 }}>
+                <label>총 템플릿 수</label>
+                <input type="number" min={1} value={tmplCount}
+                  onChange={e => setTmplCount(e.target.value)}
+                  placeholder="예: 30" style={{ width: '100%' }} />
+              </div>
+              <button className="btn btn-primary" onClick={runTmplAuto} disabled={!tmplCount || parseInt(tmplCount) < 1}>
+                자동 배분
+              </button>
+            </div>
+
+            {tmplResult.length > 0 && (() => {
+              // 디자이너별 그룹핑
+              const grouped = {}
+              designers.forEach(d => { grouped[d.id] = [] })
+              tmplResult.forEach(r => { if (grouped[r.designerId]) grouped[r.designerId].push(r.templateIdx) })
+              return (
+                <>
+                  <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 360, overflowY: 'auto', marginBottom: 14 }}>
+                    {designers.map(d => {
+                      const idxList = grouped[d.id] || []
+                      if (idxList.length === 0) return null
+                      const dLabelIds = designerLabels.filter(dl => String(dl.designer_id) === String(d.id)).map(dl => dl.label_id)
+                      const dLabels = labels.filter(l => dLabelIds.includes(l.id))
+                      return (
+                        <div key={d.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>{d.name[0]}</div>
+                            <span style={{ fontWeight: 700, fontSize: 13 }}>{d.name}</span>
+                            {d.nickname && <span style={{ fontSize: 11, color: 'var(--text2)' }}>({d.nickname})</span>}
+                            {dLabels.map(l => <span key={l.id} style={{ background: l.color + '22', color: l.color, padding: '1px 6px', borderRadius: 20, fontSize: 10, fontWeight: 600 }}>{l.name}</span>)}
+                            <span style={{ marginLeft: 'auto', background: 'var(--accent-bg)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{idxList.length}개</span>
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {idxList.map(idx => (
+                              <span key={idx} style={{ background: '#f1f5f9', borderRadius: 5, padding: '2px 7px', fontSize: 12, color: 'var(--text2)' }}>#{idx}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div style={{ background: '#f8fafc', borderRadius: 8, padding: '8px 14px', marginBottom: 14, fontSize: 13, color: 'var(--text2)' }}>
+                    총 <strong style={{ color: 'var(--text)' }}>{tmplResult.length}개</strong> 템플릿 · 외주 1인 평균 <strong style={{ color: 'var(--text)' }}>{(tmplResult.length / designers.length).toFixed(1)}개</strong>
+                  </div>
+                </>
+              )
+            })()}
+
+            <div className="ma">
+              <button className="btn btn-ghost" onClick={() => setTmplModal(false)}>취소</button>
+              <button className="btn btn-primary" onClick={saveTmplAssignments} disabled={tmplResult.length === 0 || tmplSaving}>
+                {tmplSaving ? '저장 중...' : '배분 저장'}
+              </button>
             </div>
           </div>
         </div>
