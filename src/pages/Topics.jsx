@@ -433,28 +433,48 @@ export default function Topics() {
               const grouped = {}
               designers.forEach(d => { grouped[d.id] = [] })
               tmplResult.forEach(r => { if (grouped[r.designerId]) grouped[r.designerId].push(r.templateIdx) })
+
+              function adjustCount(designerId, delta) {
+                const counts = {}
+                designers.forEach(d => { counts[d.id] = (grouped[d.id] || []).length })
+                const next = (counts[designerId] || 0) + delta
+                if (next < 0) return
+                counts[designerId] = next
+                // 총합 기준으로 idx 재배정
+                const result = []; let idx = 1
+                for (const d of designers) {
+                  for (let i = 0; i < counts[d.id]; i++) result.push({ templateIdx: idx++, designerId: d.id })
+                }
+                setTmplResult(result)
+              }
+
               return (
                 <>
                   <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 360, overflowY: 'auto', marginBottom: 14 }}>
                     {designers.map(d => {
                       const idxList = grouped[d.id] || []
-                      if (idxList.length === 0) return null
                       const dLabelIds = designerLabels.filter(dl => String(dl.designer_id) === String(d.id)).map(dl => dl.label_id)
                       const dLabels = labels.filter(l => dLabelIds.includes(l.id))
                       return (
                         <div key={d.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: idxList.length > 0 ? 8 : 0 }}>
                             <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>{d.name[0]}</div>
                             <span style={{ fontWeight: 700, fontSize: 13 }}>{d.name}</span>
                             {d.nickname && <span style={{ fontSize: 11, color: 'var(--text2)' }}>({d.nickname})</span>}
                             {dLabels.map(l => <span key={l.id} style={{ background: l.color + '22', color: l.color, padding: '1px 6px', borderRadius: 20, fontSize: 10, fontWeight: 600 }}>{l.name}</span>)}
-                            <span style={{ marginLeft: 'auto', background: 'var(--accent-bg)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{idxList.length}개</span>
+                            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <button onClick={() => adjustCount(d.id, -1)} style={{ width: 24, height: 24, border: '1.5px solid var(--border)', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text2)' }}>−</button>
+                              <span style={{ minWidth: 32, textAlign: 'center', fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>{idxList.length}개</span>
+                              <button onClick={() => adjustCount(d.id, +1)} style={{ width: 24, height: 24, border: '1.5px solid var(--border)', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text2)' }}>+</button>
+                            </div>
                           </div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                            {idxList.map(idx => (
-                              <span key={idx} style={{ background: '#f1f5f9', borderRadius: 5, padding: '2px 7px', fontSize: 12, color: 'var(--text2)' }}>#{idx}</span>
-                            ))}
-                          </div>
+                          {idxList.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {idxList.map(idx => (
+                                <span key={idx} style={{ background: '#f1f5f9', borderRadius: 5, padding: '2px 7px', fontSize: 12, color: 'var(--text2)' }}>#{idx}</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )
                     })}
