@@ -277,21 +277,31 @@ export default function Dashboard({ onNavigate }) {
           <strong style={{ fontSize: 15 }}>📅 마감일별 주제 현황</strong>
           {(() => {
             const today = new Date(); today.setHours(0,0,0,0)
+            // 배정 기준으로 그룹핑 (개별 마감일 우선, 없으면 주제 마감일)
             const byDeadline = {}
-            topics.filter(t => t.deadline).forEach(t => {
-              if (!byDeadline[t.deadline]) byDeadline[t.deadline] = []
-              byDeadline[t.deadline].push(t)
+            assignments.forEach(a => {
+              const t = topicMap[String(a.topic_id)]
+              const deadline = a.deadline || t?.deadline
+              if (!deadline) return
+              if (!byDeadline[deadline]) byDeadline[deadline] = {}
+              const topicName = t?.name || '-'
+              if (!byDeadline[deadline][topicName]) byDeadline[deadline][topicName] = { tmpl: 0, designers: 0 }
+              byDeadline[deadline][topicName].designers++
+              const tmplCount = templateAssignments.filter(ta => String(ta.designer_id) === String(a.designer_id) && String(ta.topic_id) === String(a.topic_id)).length
+              byDeadline[deadline][topicName].tmpl += tmplCount > 0 ? tmplCount : (t?.qty_per_person || 1)
             })
             const sorted = Object.entries(byDeadline).sort((a, b) => new Date(a[0]) - new Date(b[0]))
-            if (sorted.length === 0) return <div style={{ color: 'var(--text2)', fontSize: 13, marginTop: 12 }}>마감일이 설정된 주제가 없습니다.</div>
+            if (sorted.length === 0) return <div style={{ color: 'var(--text2)', fontSize: 13, marginTop: 12 }}>마감일이 설정된 배정이 없습니다.</div>
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16 }}>
-                {sorted.map(([deadline, tList]) => {
+                {sorted.map(([deadline, topicMap2]) => {
                   const d = new Date(deadline); d.setHours(0,0,0,0)
                   const diff = Math.round((d - today) / (1000*60*60*24))
                   const isPast = diff < 0
                   const label = diff === 0 ? '오늘' : isPast ? `D+${Math.abs(diff)}` : `D-${diff}`
                   const color = isPast ? '#ef4444' : diff <= 3 ? '#f59e0b' : '#6366f1'
+                  const entries = Object.entries(topicMap2)
+                  const totalTmpl = entries.reduce((s, [, v]) => s + v.tmpl, 0)
                   return (
                     <div key={deadline} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                       <div style={{ minWidth: 80, paddingTop: 2 }}>
@@ -299,12 +309,15 @@ export default function Dashboard({ onNavigate }) {
                         <div style={{ fontSize: 11, color, fontWeight: 600 }}>{label}</div>
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>총 {tList.length}개</div>
+                        <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>총 {entries.length}개 주제 · 템플릿 {totalTmpl}개</div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                          {tList.map(t => (
-                            <span key={t.id} style={{ background: color + '15', color, border: `1px solid ${color}33`, borderRadius: 5, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>
-                              {t.name}
-                            </span>
+                          {entries.map(([name, { designers, tmpl }]) => (
+                            <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ background: color + '15', color, border: `1px solid ${color}33`, borderRadius: 5, padding: '2px 8px', fontSize: 11, fontWeight: 600, flex: 1 }}>
+                                {name}
+                              </span>
+                              <span style={{ fontSize: 11, color: 'var(--text2)', whiteSpace: 'nowrap' }}>{designers}명 · {tmpl}개</span>
+                            </div>
                           ))}
                         </div>
                       </div>

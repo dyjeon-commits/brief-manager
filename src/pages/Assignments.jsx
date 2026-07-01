@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { getAll, addAssignment, deleteAssignment, updateAssignmentStatus } from '../api'
+import { getAll, addAssignment, deleteAssignment, updateAssignmentStatus, updateAssignmentDeadline } from '../api'
 import { useAuth } from '../AuthContext'
 import { supabase } from '../AuthContext'
 
@@ -137,7 +137,8 @@ export default function Assignments() {
 
   const isOverdue = a => {
     const t = topicMap[String(a.topic_id)]
-    return t?.deadline && a.status !== 'completed' && new Date(t.deadline) < new Date()
+    const deadline = a.deadline || t?.deadline
+    return deadline && a.status !== 'completed' && new Date(deadline) < new Date()
   }
 
   const getDesignerLabelObjs = (id) => {
@@ -425,7 +426,10 @@ export default function Assignments() {
                         <td style={tdStyle}>{t?.type && <span style={{ background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500 }}>{t.type}</span>}</td>
                         <td style={tdStyle}>{t?.brief_url ? <a href={t.brief_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>열기 →</a> : '-'}</td>
                         <td style={{ ...tdStyle, color: overdue ? 'var(--danger)' : undefined }}>
-                          {t?.deadline || '-'}
+                          <input type="date"
+                            value={a.deadline || t?.deadline || ''}
+                            onChange={async e => { await updateAssignmentDeadline(a.id, e.target.value); load() }}
+                            style={{ border: 'none', background: 'transparent', fontSize: 13, color: overdue ? 'var(--danger)' : 'inherit', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }} />
                           {overdue && <span style={{ marginLeft: 6, fontSize: 11, background: '#fee2e2', color: 'var(--danger)', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>초과</span>}
                         </td>
                         <td style={tdStyle}>{t?.pages ? `${t.pages}p` : '-'}</td>

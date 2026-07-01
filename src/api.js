@@ -107,6 +107,9 @@ export async function deleteAssignment(id) {
 export async function updateAssignmentStatus(id, status) {
   await supabase.from('assignments').update({ status }).eq('id', id)
 }
+export async function updateAssignmentDeadline(id, deadline) {
+  await supabase.from('assignments').update({ deadline: deadline || null }).eq('id', id)
+}
 
 // Labels
 export async function getLabels() {
