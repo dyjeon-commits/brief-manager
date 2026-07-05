@@ -110,6 +110,11 @@ export async function updateAssignmentStatus(id, status) {
 export async function updateAssignmentDeadline(id, deadline) {
   await supabase.from('assignments').update({ deadline: deadline || null }).eq('id', id)
 }
+export async function setAssignmentTiers(tierUpdates) {
+  await Promise.all(tierUpdates.map(({ id, tier }) =>
+    supabase.from('assignments').update({ tier }).eq('id', id)
+  ))
+}
 
 // Labels
 export async function getLabels() {
