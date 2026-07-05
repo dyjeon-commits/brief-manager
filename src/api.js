@@ -52,7 +52,7 @@ export async function getTemplateAssignments(topicId) {
 export async function setTemplateAssignments(topicId, assignments) {
   await supabase.from('template_assignments').delete().eq('topic_id', topicId)
   if (assignments.length > 0) {
-    await supabase.from('template_assignments').insert(assignments.map(a => ({ topic_id: topicId, template_idx: a.templateIdx, designer_id: a.designerId })))
+    await supabase.from('template_assignments').insert(assignments.map(a => ({ topic_id: topicId, template_idx: a.templateIdx, designer_id: a.designerId, tier: a.tier || 'standard' })))
   }
 }
 export async function deleteDesigner(id) {
