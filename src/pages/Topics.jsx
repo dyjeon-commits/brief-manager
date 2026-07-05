@@ -31,12 +31,10 @@ export default function Topics() {
   const [tmplModal, setTmplModal] = useState(false)
   const [tmplTopic, setTmplTopic] = useState(null)
   const [tmplCount, setTmplCount] = useState('')
-  const [premiumCount, setPremiumCount] = useState('')
-  const [tmplResult, setTmplResult] = useState([]) // [{templateIdx, designerId, tier}]
+  const [tmplResult, setTmplResult] = useState([]) // [{templateIdx, designerId}]
   const [tmplAllIdxs, setTmplAllIdxs] = useState([]) // 원본 전체 idx 목록
   const [tmplSaving, setTmplSaving] = useState(false)
   const [tmplCountsPerTopic, setTmplCountsPerTopic] = useState({}) // topicId → count
-  const [allPremiumCounts, setAllPremiumCounts] = useState({}) // designerId → 다른 주제 프리미엄 수
 
   useEffect(() => { if (profile) load() }, [profile])
 
@@ -113,42 +111,14 @@ export default function Topics() {
   async function openTmplModal(topic) {
     setTmplTopic(topic)
     setTmplCount('')
-    setPremiumCount('')
     const existing = await getTemplateAssignments(topic.id)
     if (existing.length > 0) {
-      setTmplResult(existing.map(e => ({ templateIdx: e.template_idx, designerId: e.designer_id, tier: e.tier || 'standard' })))
-      setTmplCount(String(existing.length))
-      const existingPremium = existing.filter(e => e.tier === 'premium').length
-      if (existingPremium > 0) setPremiumCount(String(existingPremium))
+      setTmplResult(existing.map(e => ({ templateIdx: e.template_idx, designerId: e.designer_id })))
+      setTmplCount(existing.length)
     } else {
       setTmplResult([])
     }
-    // 다른 주제에서의 프리미엄 수 집계
-    const { data: premiumRows } = await supabase
-      .from('template_assignments').select('designer_id').eq('tier', 'premium').neq('topic_id', topic.id)
-    const counts = {}
-    ;(premiumRows || []).forEach(r => { counts[r.designer_id] = (counts[r.designer_id] || 0) + 1 })
-    setAllPremiumCounts(counts)
     setTmplModal(true)
-  }
-
-  function calcTiers(result, pCount, premiumCounts) {
-    if (!pCount || pCount <= 0) return result.map(r => ({ ...r, tier: 'standard' }))
-    const designersWithTmpl = sortedDesigners.filter(d => result.some(r => r.designerId === d.id))
-    const sortedByPremium = [...designersWithTmpl].sort((a, b) => (premiumCounts[a.id] || 0) - (premiumCounts[b.id] || 0))
-    const quotas = {}
-    sortedByPremium.forEach(d => { quotas[d.id] = 0 })
-    for (let i = 0; i < pCount; i++) {
-      quotas[sortedByPremium[i % sortedByPremium.length].id]++
-    }
-    const used = {}
-    return result.map(r => {
-      const quota = quotas[r.designerId] || 0
-      const u = used[r.designerId] || 0
-      const tier = u < quota ? 'premium' : 'standard'
-      if (tier === 'premium') used[r.designerId] = u + 1
-      return { ...r, tier }
-    })
   }
 
   function getDesignerLabelIds(did) {
@@ -180,17 +150,20 @@ export default function Topics() {
     const base = Math.floor(n / m)
     const remainder = n % m
 
+    // A등급 디자이너
     const aGraders = sortedDesigners.filter(d => getDesignerGrade(d.id) === 1)
     const orderedForRemainder = aGraders.length > 0
       ? [...aGraders, ...sortedDesigners.filter(d => getDesignerGrade(d.id) !== 1)]
       : sortedDesigners
 
+    // 각 디자이너에게 배정할 수
     const counts = {}
     sortedDesigners.forEach(d => { counts[d.id] = base })
     for (let i = 0; i < remainder; i++) {
       counts[orderedForRemainder[i % orderedForRemainder.length].id]++
     }
 
+    // 템플릿 idx 배분 (등급순)
     const result = []
     let idx = 1
     for (const d of sortedDesigners) {
@@ -198,11 +171,8 @@ export default function Topics() {
         result.push({ templateIdx: idx++, designerId: d.id })
       }
     }
-
-    const pCount = parseInt(premiumCount) || 0
-    const finalResult = calcTiers(result, pCount, allPremiumCounts)
-    setTmplResult(finalResult)
-    setTmplAllIdxs(finalResult.map(r => r.templateIdx).sort((a, b) => a - b))
+    setTmplResult(result)
+    setTmplAllIdxs(result.map(r => r.templateIdx).sort((a, b) => a - b))
   }
 
   async function saveTmplAssignments() {
@@ -560,27 +530,15 @@ export default function Topics() {
 
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 16 }}>
               <div className="fg" style={{ flex: 1, margin: 0 }}>
-                <label>총 템플릿 수</label>
+                <label>총 템플릿 수 (수동 균등 배분)</label>
                 <input type="number" min={1} value={tmplCount}
                   onChange={e => setTmplCount(e.target.value)}
-                  placeholder="예: 10" style={{ width: '100%' }} />
-              </div>
-              <div className="fg" style={{ flex: 1, margin: 0 }}>
-                <label>⭐ 프리미엄 수</label>
-                <input type="number" min={0} value={premiumCount}
-                  onChange={e => setPremiumCount(e.target.value)}
-                  placeholder="예: 2" style={{ width: '100%' }} />
+                  placeholder="예: 30" style={{ width: '100%' }} />
               </div>
               <button className="btn btn-primary" onClick={runTmplAuto} disabled={!tmplCount || parseInt(tmplCount) < 1}>
                 자동 배분
               </button>
             </div>
-            {premiumCount && parseInt(premiumCount) > 0 && (
-              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 14px', marginBottom: 14, fontSize: 12, color: '#92400e' }}>
-                ⭐ 프리미엄 {premiumCount}개 · 스탠다드 {Math.max(0, (parseInt(tmplCount)||0) - (parseInt(premiumCount)||0))}개로 배분됩니다.
-                프리미엄은 다른 주제에서 프리미엄이 적은 디자이너 순으로 자동 배정됩니다.
-              </div>
-            )}
 
             {tmplResult.length > 0 && (() => {
               // 디자이너별 그룹핑
@@ -594,6 +552,7 @@ export default function Topics() {
                 const next = (counts[designerId] || 0) + delta
                 if (next < 0) return
                 counts[designerId] = next
+                // 원본 전체 idx 목록 기준으로 재분배
                 const allIdxs = (tmplAllIdxs.length > 0 ? tmplAllIdxs : tmplResult.map(r => r.templateIdx)).sort((a, b) => a - b)
                 const result = []; let i = 0
                 for (const d of sortedDesigners) {
@@ -601,8 +560,7 @@ export default function Topics() {
                     if (i < allIdxs.length) result.push({ templateIdx: allIdxs[i++], designerId: d.id })
                   }
                 }
-                const pCount = parseInt(premiumCount) || 0
-                setTmplResult(calcTiers(result, pCount, allPremiumCounts))
+                setTmplResult(result)
               }
 
               return (
@@ -614,35 +572,22 @@ export default function Topics() {
                       const dLabels = labels.filter(l => dLabelIds.includes(l.id))
                       return (
                         <div key={d.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
-                          {(() => {
-                            const myPremium = idxList.filter(idx => tmplResult.find(r => r.templateIdx === idx && r.designerId === d.id)?.tier === 'premium').length
-                            const otherPremium = allPremiumCounts[d.id] || 0
-                            return (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: idxList.length > 0 ? 8 : 0 }}>
-                                <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>{d.name[0]}</div>
-                                <span style={{ fontWeight: 700, fontSize: 13 }}>{d.name}</span>
-                                {d.nickname && <span style={{ fontSize: 11, color: 'var(--text2)' }}>({d.nickname})</span>}
-                                {dLabels.map(l => <span key={l.id} style={{ background: l.color + '22', color: l.color, padding: '1px 6px', borderRadius: 20, fontSize: 10, fontWeight: 600 }}>{l.name}</span>)}
-                                {myPremium > 0 && <span style={{ background: '#fef3c7', color: '#d97706', padding: '1px 7px', borderRadius: 10, fontSize: 10, fontWeight: 700 }}>⭐ 이 주제 {myPremium}개</span>}
-                                {otherPremium > 0 && <span style={{ background: '#f1f5f9', color: '#64748b', padding: '1px 7px', borderRadius: 10, fontSize: 10, fontWeight: 600 }}>다른 주제 {otherPremium}개</span>}
-                                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  <button onClick={() => adjustCount(d.id, -1)} style={{ width: 24, height: 24, border: '1.5px solid var(--border)', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text2)' }}>−</button>
-                                  <span style={{ minWidth: 32, textAlign: 'center', fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>{idxList.length}개</span>
-                                  <button onClick={() => adjustCount(d.id, +1)} style={{ width: 24, height: 24, border: '1.5px solid var(--border)', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text2)' }}>+</button>
-                                </div>
-                              </div>
-                            )
-                          })()}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: idxList.length > 0 ? 8 : 0 }}>
+                            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>{d.name[0]}</div>
+                            <span style={{ fontWeight: 700, fontSize: 13 }}>{d.name}</span>
+                            {d.nickname && <span style={{ fontSize: 11, color: 'var(--text2)' }}>({d.nickname})</span>}
+                            {dLabels.map(l => <span key={l.id} style={{ background: l.color + '22', color: l.color, padding: '1px 6px', borderRadius: 20, fontSize: 10, fontWeight: 600 }}>{l.name}</span>)}
+                            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <button onClick={() => adjustCount(d.id, -1)} style={{ width: 24, height: 24, border: '1.5px solid var(--border)', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text2)' }}>−</button>
+                              <span style={{ minWidth: 32, textAlign: 'center', fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>{idxList.length}개</span>
+                              <button onClick={() => adjustCount(d.id, +1)} style={{ width: 24, height: 24, border: '1.5px solid var(--border)', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text2)' }}>+</button>
+                            </div>
+                          </div>
                           {idxList.length > 0 && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                              {idxList.map(idx => {
-                                const isPremium = tmplResult.find(r => r.templateIdx === idx && r.designerId === d.id)?.tier === 'premium'
-                                return (
-                                  <span key={idx} style={{ background: isPremium ? '#fef3c7' : '#f1f5f9', borderRadius: 5, padding: '2px 7px', fontSize: 12, color: isPremium ? '#d97706' : 'var(--text2)', fontWeight: isPremium ? 700 : 400, border: isPremium ? '1px solid #fde68a' : 'none' }}>
-                                    {isPremium ? '⭐' : ''} {idx}
-                                  </span>
-                                )
-                              })}
+                              {idxList.map(idx => (
+                                <span key={idx} style={{ background: '#f1f5f9', borderRadius: 5, padding: '2px 7px', fontSize: 12, color: 'var(--text2)' }}>idx {idx}</span>
+                              ))}
                             </div>
                           )}
                         </div>
