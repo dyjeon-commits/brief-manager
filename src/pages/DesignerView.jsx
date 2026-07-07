@@ -246,7 +246,7 @@ function AssignmentCard({ a, t, tmplIdxList = [] }) {
             {t?.type && <span style={{ background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 500 }}>{t.type}</span>}
             {t?.deadline && (
               <span style={{ color: isOverdue ? '#dc2626' : '#64748b', fontWeight: isOverdue ? 700 : 400 }}>
-                📅 마감일 {t.deadline}{isOverdue ? ' (마감초과)' : ''}
+                📅 마감일 {t.deadline}
               </span>
             )}
             {t?.pages && <span>📄 페이지 수 {t.pages}p</span>}
