@@ -462,12 +462,11 @@ export default function Assignments() {
                   const d = designerMap[did]
                   rows.push(
                     <tr key={`sub-${did}`} style={{ background: '#f8fafc', borderTop: '2px solid var(--border)' }}>
-                      <td colSpan={7} style={{ ...tdStyle, fontSize: 12, color: 'var(--text2)', borderBottom: '2px solid #cbd5e1' }}>
+                      <td colSpan={9} style={{ ...tdStyle, fontSize: 12, color: 'var(--text2)', borderBottom: '2px solid #cbd5e1' }}>
                         <span style={{ fontWeight: 700, color: '#334155' }}>{d?.name}</span> 소계 —&nbsp;
                         총 <strong style={{ color: '#6366f1' }}>{aList.length}건</strong> 배정,&nbsp;
                         총 템플릿 <strong style={{ color: '#0891b2' }}>{totalWork}개</strong>
                       </td>
-                      <td style={{ ...tdStyle, borderBottom: '2px solid #cbd5e1' }} />
                     </tr>
                   )
                 })
