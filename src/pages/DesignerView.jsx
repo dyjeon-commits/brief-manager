@@ -107,20 +107,6 @@ export default function DesignerView({ token }) {
           <div style={{ fontWeight: 700, fontSize: 17 }}>{designer.name}</div>
           <div style={{ fontSize: 13, color: '#64748b' }}>배정된 기획서 목록</div>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 20, fontSize: 13 }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontWeight: 700, fontSize: 22, color: '#6366f1' }}>{totalTmpl}</div>
-            <div style={{ color: '#64748b' }}>총 템플릿</div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontWeight: 700, fontSize: 22, color: '#3b82f6' }}>{active.length}</div>
-            <div style={{ color: '#64748b' }}>진행중</div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontWeight: 700, fontSize: 22, color: '#22c55e' }}>{completed.length}</div>
-            <div style={{ color: '#64748b' }}>완료</div>
-          </div>
-        </div>
       </div>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '28px 20px' }}>
