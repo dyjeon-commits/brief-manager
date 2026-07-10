@@ -8,7 +8,7 @@ const TYPE_OPTIONS = [
   '유튜브 썸네일', '카드뉴스', '인포그래픽', '기타',
 ]
 
-const EMPTY = { name: '', briefUrl: '', type: '', type2: '', deadline: '', pages: '', notice: '', qtyPerPerson: '1' }
+const EMPTY = { name: '', briefUrl: '', type: '', type2: '', deadline: '', pages: '', notice: '', qtyPerPerson: '1', conceptFee: '200000' }
 
 export default function Topics() {
   const { profile } = useAuth()
@@ -62,7 +62,7 @@ export default function Topics() {
 
   function openAdd() { setForm(EMPTY); setSelectedLabels([]); setEditId(null); setModal(true) }
   function openEdit(t) {
-    setForm({ name: t.name, briefUrl: t.brief_url || '', type: t.type || '', type2: t.type2 || '', deadline: t.deadline || '', pages: t.pages || '', notice: t.notice || '', qtyPerPerson: t.qty_per_person || '1' })
+    setForm({ name: t.name, briefUrl: t.brief_url || '', type: t.type || '', type2: t.type2 || '', deadline: t.deadline || '', pages: t.pages || '', notice: t.notice || '', qtyPerPerson: t.qty_per_person || '1', conceptFee: t.concept_fee ?? 200000 })
     const myLabels = topicLabels.filter(tl => tl.topic_id === t.id).map(tl => tl.label_id)
     setSelectedLabels(myLabels)
     setEditId(t.id); setModal(true)
@@ -408,6 +408,20 @@ export default function Topics() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="fg"><label>디자인 마감일</label><input type="date" value={form.deadline} onChange={e => setForm(p => ({ ...p, deadline: e.target.value }))} /></div>
               <div className="fg"><label>총 제작 페이지</label><input type="number" value={form.pages} onChange={e => setForm(p => ({ ...p, pages: e.target.value }))} placeholder="예: 20" min="1" /></div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="fg">
+                <label>컨셉 비용 (원)</label>
+                <input type="number" min={0} value={form.conceptFee}
+                  onChange={e => setForm(p => ({ ...p, conceptFee: e.target.value }))}
+                  placeholder="200000" style={{ width: '100%' }} />
+              </div>
+              <div className="fg" style={{ margin: 0, display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
+                <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.5 }}>
+                  페이지 단가 <strong>₩15,000</strong> 고정<br/>
+                  정산 = (컨셉비용 + 15,000 × 페이지) × 템플릿 수
+                </div>
+              </div>
             </div>
             <div className="fg">
               <label>인당 템플릿 수 (qty_per_person)</label>

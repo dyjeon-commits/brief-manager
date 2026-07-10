@@ -385,7 +385,7 @@ export default function Assignments() {
         <div className="card" style={{ overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr>{['디자이너', '작업주제', '타입', '기획서', '마감일', '총 페이지', '총 템플릿', '상태', ''].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
+              <tr>{['디자이너', '작업주제', '타입', '기획서', '마감일', '총 페이지', '총 템플릿', '정산', '상태', ''].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
             </thead>
             <tbody>
               {(() => {
@@ -440,6 +440,16 @@ export default function Assignments() {
                             return `${qty}개`
                           })()}
                         </td>
+                        <td style={{ ...tdStyle, fontWeight: 600, color: '#0f766e' }}>
+                          {(() => {
+                            const tmplCount = templateAssignments.filter(ta => String(ta.designer_id) === String(a.designer_id) && String(ta.topic_id) === String(a.topic_id)).length
+                            const qty = tmplCount > 0 ? tmplCount : (t?.qty_per_person || 1)
+                            const conceptFee = t?.concept_fee ?? 200000
+                            const pages = t?.pages || 0
+                            const total = (conceptFee + 15000 * pages) * qty
+                            return '₩' + total.toLocaleString()
+                          })()}
+                        </td>
                         <td style={tdStyle}>
                           <select style={{ padding: '5px 8px', border: `1.5px solid ${statusInfo.color}`, borderRadius: 7, background: statusInfo.bg, fontSize: 12, cursor: 'pointer', color: statusInfo.color, fontWeight: 600 }}
                             value={a.status || 'not_submitted'} onChange={async e => { await updateAssignmentStatus(a.id, e.target.value); load() }}>
@@ -459,13 +469,22 @@ export default function Assignments() {
                     const tmplCount = templateAssignments.filter(ta => String(ta.designer_id) === did && String(ta.topic_id) === String(a.topic_id)).length
                     return sum + (tmplCount > 0 ? tmplCount : (t?.qty_per_person || 1))
                   }, 0)
+                  const totalSettlement = aList.reduce((sum, a) => {
+                    const t = topicMap[String(a.topic_id)]
+                    const tmplCount = templateAssignments.filter(ta => String(ta.designer_id) === did && String(ta.topic_id) === String(a.topic_id)).length
+                    const qty = tmplCount > 0 ? tmplCount : (t?.qty_per_person || 1)
+                    const conceptFee = t?.concept_fee ?? 200000
+                    const pages = t?.pages || 0
+                    return sum + (conceptFee + 15000 * pages) * qty
+                  }, 0)
                   const d = designerMap[did]
                   rows.push(
                     <tr key={`sub-${did}`} style={{ background: '#f8fafc', borderTop: '2px solid var(--border)' }}>
-                      <td colSpan={9} style={{ ...tdStyle, fontSize: 12, color: 'var(--text2)', borderBottom: '2px solid #cbd5e1' }}>
+                      <td colSpan={10} style={{ ...tdStyle, fontSize: 12, color: 'var(--text2)', borderBottom: '2px solid #cbd5e1' }}>
                         <span style={{ fontWeight: 700, color: '#334155' }}>{d?.name}</span> 소계 —&nbsp;
                         총 <strong style={{ color: '#6366f1' }}>{aList.length}건</strong> 배정,&nbsp;
-                        총 템플릿 <strong style={{ color: '#0891b2' }}>{totalWork}개</strong>
+                        총 템플릿 <strong style={{ color: '#0891b2' }}>{totalWork}개</strong>,&nbsp;
+                        정산 <strong style={{ color: '#0f766e' }}>₩{totalSettlement.toLocaleString()}</strong>
                       </td>
                     </tr>
                   )

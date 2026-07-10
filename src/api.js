@@ -69,6 +69,7 @@ export async function addTopic(data, pmId) {
     pages: data.pages ? parseInt(data.pages) : null,
     notice: data.notice || null,
     qty_per_person: data.qtyPerPerson ? parseInt(data.qtyPerPerson) : 1,
+    concept_fee: data.conceptFee ? parseInt(data.conceptFee) : 200000,
     pm_id: pmId,
   }).select().single()
   return result
@@ -84,6 +85,7 @@ export async function updateTopic(data) {
     pages: rest.pages ? parseInt(rest.pages) : null,
     notice: rest.notice || null,
     qty_per_person: rest.qtyPerPerson ? parseInt(rest.qtyPerPerson) : 1,
+    concept_fee: rest.conceptFee ? parseInt(rest.conceptFee) : 200000,
   }).eq('id', id)
 }
 export async function deleteTopic(id) {
