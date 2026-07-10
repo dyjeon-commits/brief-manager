@@ -179,7 +179,7 @@ export default function DesignerView({ token }) {
                 </div>
               </div>
             )}
-            {completed.length > 0 && (
+            {false && completed.length > 0 && (
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>완료 ({completed.length})</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, opacity: 0.6 }}>
