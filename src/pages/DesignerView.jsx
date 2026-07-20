@@ -90,10 +90,13 @@ export default function DesignerView({ token }) {
   active.forEach(a => {
     const t = topicMap[String(a.topic_id)]
     if (!t?.deadline) return
-    if (!deadlineGroups[t.deadline]) deadlineGroups[t.deadline] = { count: 0, tmpl: 0 }
+    if (!deadlineGroups[t.deadline]) deadlineGroups[t.deadline] = { count: 0, tmpl: 0, premium: 0, standard: 0 }
     const idxList = templateAssignments.filter(tm => String(tm.topic_id) === String(a.topic_id))
+    const qty = idxList.length > 0 ? idxList.length : (t?.qty_per_person || 1)
     deadlineGroups[t.deadline].count++
-    deadlineGroups[t.deadline].tmpl += idxList.length > 0 ? idxList.length : (t?.qty_per_person || 1)
+    deadlineGroups[t.deadline].tmpl += qty
+    if (a.tier === 'premium') deadlineGroups[t.deadline].premium += qty
+    else deadlineGroups[t.deadline].standard += qty
   })
 
   return (
@@ -130,7 +133,7 @@ export default function DesignerView({ token }) {
               📦 총 제작 수량
             </div>
             <div style={{ background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 12, padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {Object.entries(deadlineGroups).sort((a, b) => new Date(a[0]) - new Date(b[0])).map(([deadline, { tmpl }]) => {
+              {Object.entries(deadlineGroups).sort((a, b) => new Date(a[0]) - new Date(b[0])).map(([deadline, { tmpl, premium, standard }]) => {
                 const today = new Date(); today.setHours(0,0,0,0)
                 const d = new Date(deadline); d.setHours(0,0,0,0)
                 const diff = Math.round((d - today) / (1000*60*60*24))
@@ -141,7 +144,11 @@ export default function DesignerView({ token }) {
                   <div key={deadline} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color, minWidth: 40 }}>{label}</span>
                     <span style={{ fontSize: 13, color: '#475569' }}>마감일 {deadline}</span>
-                    <span style={{ marginLeft: 'auto', fontSize: 15, fontWeight: 700, color }}>총 {tmpl}개</span>
+                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {premium > 0 && <span style={{ fontSize: 12, fontWeight: 600, background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: 20 }}>⭐ 프리미엄 {premium}개</span>}
+                      {standard > 0 && <span style={{ fontSize: 12, fontWeight: 600, background: '#f1f5f9', color: '#475569', padding: '2px 8px', borderRadius: 20 }}>스탠다드 {standard}개</span>}
+                      <span style={{ fontSize: 15, fontWeight: 700, color }}>총 {tmpl}개</span>
+                    </div>
                   </div>
                 )
               })}
@@ -223,11 +230,15 @@ function NoticeAccordion({ n }) {
 function AssignmentCard({ a, t, tmplIdxList = [] }) {
   const isOverdue = t?.deadline && a.status !== 'completed' && new Date(t.deadline) < new Date()
   const status = a.status || 'not_submitted'
+  const isPremium = a.tier === 'premium'
   return (
-    <div style={{ background: 'white', borderRadius: 12, padding: '18px 20px', border: `1.5px solid ${isOverdue ? '#fca5a5' : '#e2e8f0'}` }}>
+    <div style={{ background: 'white', borderRadius: 12, padding: '18px 20px', border: `1.5px solid ${isPremium ? '#fde68a' : isOverdue ? '#fca5a5' : '#e2e8f0'}` }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>{t?.name || '-'}</div>
+          <div style={{ marginBottom: 6 }}>
+            {isPremium && <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, display: 'inline-block', marginBottom: 4 }}>⭐ 프리미엄</span>}
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{t?.name || '-'}</div>
+          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, fontSize: 13, color: '#64748b' }}>
             {t?.type && <span style={{ background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 500 }}>{t.type}</span>}
             {t?.deadline && (
