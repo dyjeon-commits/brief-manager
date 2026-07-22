@@ -164,19 +164,10 @@ export default function DesignerView({ token }) {
           </div>
         ) : (
           <>
-            {active.length > 0 && (
+            {assignments.length > 0 && (
               <div style={{ marginBottom: 32 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>진행중 ({active.length})</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-                  {active.map(a => <AssignmentCard key={a.id} a={a} t={topicMap[String(a.topic_id)]} tmplIdxList={templateAssignments.filter(tm => String(tm.topic_id) === String(a.topic_id)).map(tm => tm.template_idx).sort((x,y)=>x-y)} />)}
-                </div>
-              </div>
-            )}
-            {completed.length > 0 && (
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>완료 ({completed.length})</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, opacity: 0.5 }}>
-                  {completed.map(a => <AssignmentCard key={a.id} a={a} t={topicMap[String(a.topic_id)]} tmplIdxList={templateAssignments.filter(tm => String(tm.topic_id) === String(a.topic_id)).map(tm => tm.template_idx).sort((x,y)=>x-y)} />)}
+                  {assignments.map(a => <AssignmentCard key={a.id} a={a} t={topicMap[String(a.topic_id)]} tmplIdxList={templateAssignments.filter(tm => String(tm.topic_id) === String(a.topic_id)).map(tm => tm.template_idx).sort((x,y)=>x-y)} />)}
                 </div>
               </div>
             )}
@@ -250,11 +241,6 @@ function AssignmentCard({ a, t, tmplIdxList = [] }) {
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
-          {status !== 'not_submitted' && status !== 'assigned' && (
-            <span style={{ background: (STATUS_COLOR[status] || '#94a3b8') + '22', color: STATUS_COLOR[status] || '#94a3b8', padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600 }}>
-              {STATUS_LABEL[status] || status}
-            </span>
-          )}
           {t?.brief_url && (
             <a href={t.brief_url} target="_blank" rel="noreferrer"
               style={{ background: '#6366f1', color: 'white', padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
