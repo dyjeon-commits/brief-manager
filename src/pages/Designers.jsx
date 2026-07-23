@@ -141,7 +141,8 @@ export default function Designers() {
                     <button className="btn btn-danger" style={{ padding: '6px 12px', fontSize: 13 }} onClick={() => remove(d.id)}>삭제</button>
                   </div>
                 </div>
-                <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>{d.name}</div>
+                <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 2 }}>{d.name}</div>
+                {d.nickname && <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 2 }}>@{d.nickname}</div>}
                 {d.specialty && <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 500, marginBottom: 4 }}>{d.specialty}</div>}
                 {d.contact && <div style={{ fontSize: 13, color: 'var(--text2)' }}>📞 {d.contact}</div>}
                 {d.token && (
