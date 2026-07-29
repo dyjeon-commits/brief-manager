@@ -254,7 +254,7 @@ export default function Topics() {
             </button>
           )}
           <label style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: 'var(--text)' }}>
-            📂 CSV 가져오기
+            📂 CSV 업로드
             <input type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvFile} />
           </label>
           <button className="btn btn-primary" onClick={openAdd}>+ 주제 추가</button>
