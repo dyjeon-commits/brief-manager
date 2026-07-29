@@ -260,9 +260,12 @@ export default function Topics() {
           <button className="btn btn-primary" onClick={openAdd}>+ 주제 추가</button>
         </div>
       </div>
-      <p style={{ color: 'var(--text2)', fontSize: 13, marginBottom: 20 }}>
+      <p style={{ color: 'var(--text2)', fontSize: 13, marginBottom: 12 }}>
         주제를 미리 등록해두면 배정 시 기획서 링크·마감일·페이지 수가 자동으로 채워집니다.
       </p>
+      <div style={{ background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: 10, padding: '10px 16px', fontSize: 13, color: '#92400e', marginBottom: 20 }}>
+        ⚠️ 작업 주제에는 CSV만 올린 후, 배정 현황에서 외주분들에게 할당을 진행해주세요.
+      </div>
 
       {topics.length === 0 ? (
         <div className="card empty">
@@ -327,7 +330,7 @@ export default function Topics() {
                         background: tmplCountsPerTopic[t.id] > 0 ? '#6366f1' : 'var(--surface)',
                         color: tmplCountsPerTopic[t.id] > 0 ? 'white' : 'var(--text2)',
                         border: tmplCountsPerTopic[t.id] > 0 ? 'none' : '1.5px solid var(--border)' }}>
-                        {tmplCountsPerTopic[t.id] > 0 ? '📦 템플릿 배분 ✓' : '📦 템플릿 배분'}
+                        {tmplCountsPerTopic[t.id] > 0 ? '📦 기존 템플릿 작업 ✓' : '📦 기존 템플릿 작업'}
                       </button>
                       <button className="btn btn-ghost" style={{ fontSize: 13, padding: '5px 10px' }} onClick={() => openEdit(t)}>수정</button>
                       <button className="btn btn-danger" style={{ fontSize: 13, padding: '5px 10px' }} onClick={() => remove(t.id)}>삭제</button>
