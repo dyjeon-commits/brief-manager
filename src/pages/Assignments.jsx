@@ -5,10 +5,10 @@ import { supabase } from '../AuthContext'
 
 const STATUS_COLUMNS = [
   { value: 'not_submitted', label: '제출 안함', color: '#94a3b8', bg: '#f1f5f9' },
-  { value: 'revision1',     label: '1차 수정',  color: '#f59e0b', bg: '#fffbeb' },
   { value: 'inprogress',    label: '진행 중',   color: '#3b82f6', bg: '#eff6ff' },
   { value: 'revising',      label: '수정 중',   color: '#8b5cf6', bg: '#f5f3ff' },
   { value: 'completed',     label: '완료',      color: '#10b981', bg: '#f0fdf4' },
+  { value: 'approved',      label: '심사 완료', color: '#0ea5e9', bg: '#f0f9ff' },
 ]
 
 const STATUS_MAP = Object.fromEntries(STATUS_COLUMNS.map(s => [s.value, s]))

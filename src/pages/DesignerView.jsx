@@ -8,12 +8,12 @@ const supabase = createClient(
 
 const STATUS_LABEL = {
   assigned: '제출 안함', not_submitted: '제출 안함',
-  inprogress: '진행 중', revision1: '1차 수정',
+  inprogress: '진행 중', revision1: '1차 수정', approved: '심사 완료',
   revising: '수정 중', completed: '완료'
 }
 const STATUS_COLOR = {
   assigned: '#94a3b8', not_submitted: '#94a3b8',
-  inprogress: '#3b82f6', revision1: '#f59e0b',
+  inprogress: '#3b82f6', revision1: '#f59e0b', approved: '#0ea5e9',
   revising: '#8b5cf6', completed: '#22c55e'
 }
 
