@@ -53,8 +53,13 @@ export default function Settlement() {
     a.approved_at && a.approved_at.slice(0, 7) === selectedMonth
   )
 
-  // 디자이너별 정산 계산
+  // 모든 디자이너 초기화 (가나다순)
   const designerSettlements = {}
+  ;[...designers].sort((a, b) => a.name.localeCompare(b.name, 'ko')).forEach(d => {
+    designerSettlements[String(d.id)] = { items: [], total: 0 }
+  })
+
+  // 심사완료 배정 계산
   monthAssignments.forEach(a => {
     const did = String(a.designer_id)
     const t = topicMap[String(a.topic_id)]
