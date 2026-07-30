@@ -72,11 +72,13 @@ export default function Settlement() {
     const amount = (conceptFee + 15000 * pages) * tmplCount
 
     if (!designerSettlements[did]) designerSettlements[did] = { items: [], total: 0 }
+    const isVariation = tmplList.length > 0
     designerSettlements[did].items.push({
       topicName: t?.name || '(삭제된 주제)',
       pages,
       tmplCount,
       conceptFee,
+      isVariation,
       amount,
       approvedAt: a.approved_at,
     })
@@ -165,8 +167,11 @@ export default function Settlement() {
                     {/* 주제 목록 */}
                     <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {items.map((item, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text2)' }}>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>{item.topicName}</span>
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: 'var(--text2)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden', maxWidth: '65%' }}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.topicName}</span>
+                            {item.isVariation && <span style={{ flexShrink: 0, background: '#ede9fe', color: '#7c3aed', padding: '1px 6px', borderRadius: 10, fontSize: 10, fontWeight: 700 }}>베리</span>}
+                          </div>
                           <span style={{ fontWeight: 600, color: 'var(--text)', flexShrink: 0 }}>₩{item.amount.toLocaleString()}</span>
                         </div>
                       ))}
