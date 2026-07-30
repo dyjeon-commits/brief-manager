@@ -27,8 +27,10 @@ export default function Settlement() {
     setTopics(data.topics || [])
 
     // approved_at 포함해서 assignments 로드
+    const dIds = (data.designers || []).map(d => d.id)
     let q = supabase.from('assignments').select('*').not('approved_at', 'is', null)
-    const { data: approvedAssignments } = await q
+    const { data: allApproved } = await q
+    const approvedAssignments = (allApproved || []).filter(a => dIds.includes(a.designer_id))
 
     // template_assignments
     const { data: tmplData } = await supabase.from('template_assignments').select('*')
