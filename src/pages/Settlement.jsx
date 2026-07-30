@@ -117,7 +117,7 @@ export default function Settlement() {
         <>
           {/* 월 합계 */}
           <div style={{ background: 'var(--accent-bg)', border: '1.5px solid var(--accent)', borderRadius: 12, padding: '14px 20px', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--accent)' }}>{selectedMonth} 총 정산</span>
+            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--accent)' }}>{selectedMonth} 작업내역 정산 비용</span>
             <span style={{ fontWeight: 800, fontSize: 20, color: 'var(--accent)' }}>₩{totalAll.toLocaleString()}</span>
           </div>
 
