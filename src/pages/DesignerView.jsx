@@ -227,7 +227,7 @@ function AssignmentCard({ a, t, tmplIdxList = [] }) {
   const status = a.status || 'not_submitted'
   const isPremium = a.tier === 'premium'
   return (
-    <div style={{ background: 'white', borderRadius: 12, padding: '18px 20px', border: `1.5px solid ${isPremium ? '#fde68a' : isOverdue ? '#fca5a5' : '#e2e8f0'}` }}>
+    <div style={{ background: 'white', borderRadius: 12, padding: '18px 20px', border: `1.5px solid ${isPremium ? '#fde68a' : isOverdue ? '#fca5a5' : '#e2e8f0'}`, opacity: a.status === 'approved' ? 0.45 : 1 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         <div style={{ flex: 1 }}>
           <div style={{ marginBottom: 6 }}>
