@@ -128,11 +128,11 @@ export default function Assignments() {
     if (filterDesigner !== 'all' && String(a.designer_id) !== String(filterDesigner)) return false
     return true
   }).sort((a, b) => {
-    const gd = getDesignerGrade(a.designer_id) - getDesignerGrade(b.designer_id)
-    if (gd !== 0) return gd
-    const da = designerMap[String(a.designer_id)]
-    const db = designerMap[String(b.designer_id)]
-    return (da?.name || '').localeCompare(db?.name || '', 'ko')
+    const ta = topicMap[String(a.topic_id)]
+    const tb = topicMap[String(b.topic_id)]
+    const da = a.deadline || ta?.deadline || '9999-99-99'
+    const db = b.deadline || tb?.deadline || '9999-99-99'
+    return da.localeCompare(db)
   })
 
   const isOverdue = a => {

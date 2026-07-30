@@ -167,7 +167,11 @@ export default function DesignerView({ token }) {
             {assignments.length > 0 && (
               <div style={{ marginBottom: 32 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-                  {assignments.map(a => <AssignmentCard key={a.id} a={a} t={topicMap[String(a.topic_id)]} tmplIdxList={templateAssignments.filter(tm => String(tm.topic_id) === String(a.topic_id)).map(tm => tm.template_idx).sort((x,y)=>x-y)} />)}
+                  {[...assignments].sort((a, b) => {
+              const da = topicMap[String(a.topic_id)]?.deadline || '9999-99-99'
+              const db = topicMap[String(b.topic_id)]?.deadline || '9999-99-99'
+              return da.localeCompare(db)
+            }).map(a => <AssignmentCard key={a.id} a={a} t={topicMap[String(a.topic_id)]} tmplIdxList={templateAssignments.filter(tm => String(tm.topic_id) === String(a.topic_id)).map(tm => tm.template_idx).sort((x,y)=>x-y)} />)}
                 </div>
               </div>
             )}
