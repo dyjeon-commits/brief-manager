@@ -27,11 +27,11 @@ function AppInner() {
 
   const NAV = [
     { id: 'dashboard',   label: '대시보드',  icon: '⊞' },
-    { id: 'assignments', label: '배정 현황', icon: '📋' },
     { id: 'topics',      label: '작업주제',  icon: '📁' },
-    { id: 'designers',   label: '디자이너',  icon: '👤' },
-    { id: 'labels',      label: '라벨 관리', icon: '🏷️' },
+    { id: 'assignments', label: '배정 현황', icon: '📋' },
     { id: 'settlement',  label: '정산',      icon: '💰' },
+    { id: 'labels',      label: '라벨 관리', icon: '🏷️' },
+    { id: 'designers',   label: '디자이너',  icon: '👤' },
     ...(isSuperadmin ? [{ id: 'team', label: '팀 관리', icon: '👥' }] : []),
   ]
 
