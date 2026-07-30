@@ -170,7 +170,7 @@ export default function Settlement() {
                         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: 'var(--text2)' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden', maxWidth: '65%' }}>
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.topicName}</span>
-                            {item.isVariation && <span style={{ flexShrink: 0, background: '#ede9fe', color: '#7c3aed', padding: '1px 6px', borderRadius: 10, fontSize: 10, fontWeight: 700 }}>베리</span>}
+                            {item.isVariation && <span style={{ flexShrink: 0, background: '#fee2e2', color: '#dc2626', padding: '1px 6px', borderRadius: 10, fontSize: 10, fontWeight: 700 }}>베리</span>}
                           </div>
                           <span style={{ fontWeight: 600, color: 'var(--text)', flexShrink: 0 }}>₩{item.amount.toLocaleString()}</span>
                         </div>
