@@ -181,7 +181,7 @@ export default function Designers() {
         const myAssignments = assignments.filter(a => String(a.designer_id) === String(detailId))
         const topicMap = Object.fromEntries(topics.map(t => [String(t.id), t]))
         const STATUS_LABELS = { not_submitted: '제출 안함', assigned: '제출 안함', inprogress: '진행 중', revision1: '1차 수정', revising: '수정 중', completed: '완료', approved: '심사 완료' }
-        const STATUS_COLORS = { not_submitted: '#94a3b8', assigned: '#94a3b8', inprogress: '#3b82f6', revision1: '#f59e0b', revising: '#8b5cf6', completed: '#10b981', approved: '#0ea5e9' }
+        const STATUS_COLORS = { not_submitted: '#94a3b8', assigned: '#94a3b8', inprogress: '#f59e0b', revision1: '#f59e0b', revising: '#8b5cf6', completed: '#10b981', approved: '#0ea5e9' }
         return (
           <div className="overlay" onClick={() => setDetailId(null)}>
             <div className="modal" style={{ width: 500 }} onClick={e => e.stopPropagation()}>

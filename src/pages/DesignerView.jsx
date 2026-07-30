@@ -13,7 +13,7 @@ const STATUS_LABEL = {
 }
 const STATUS_COLOR = {
   assigned: '#94a3b8', not_submitted: '#94a3b8',
-  inprogress: '#3b82f6', revision1: '#f59e0b', approved: '#0ea5e9',
+  inprogress: '#f59e0b', revision1: '#f59e0b', approved: '#0ea5e9',
   revising: '#8b5cf6', completed: '#22c55e'
 }
 
