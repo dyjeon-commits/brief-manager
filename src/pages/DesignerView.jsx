@@ -219,7 +219,7 @@ function NoticeAccordion({ n }) {
 }
 
 function AssignmentCard({ a, t, tmplIdxList = [] }) {
-  const isOverdue = t?.deadline && a.status !== 'completed' && new Date(t.deadline) < new Date()
+  const isOverdue = t?.deadline && a.status !== 'completed' && a.status !== 'approved' && new Date(t.deadline) < new Date()
   const status = a.status || 'not_submitted'
   const isPremium = a.tier === 'premium'
   return (
