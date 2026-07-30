@@ -114,50 +114,58 @@ export default function Settlement() {
             <span style={{ fontWeight: 800, fontSize: 20, color: 'var(--accent)' }}>₩{totalAll.toLocaleString()}</span>
           </div>
 
-          {/* 디자이너별 정산 */}
+          {/* 디자이너별 정산 카드 */}
           {Object.keys(designerSettlements).length === 0 ? (
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--text2)' }}>해당 월 정산 내역이 없습니다.</div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
               {Object.entries(designerSettlements).map(([did, { items, total }]) => {
                 const d = designerMap[did]
+                const totalPages = items.reduce((s, i) => s + i.pages * i.tmplCount, 0)
+                const totalTmpl = items.reduce((s, i) => s + i.tmplCount, 0)
+                const totalConceptFee = items.reduce((s, i) => s + i.conceptFee * i.tmplCount, 0)
                 return (
-                  <div key={did} className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                    <div style={{ background: 'var(--sidebar-bg)', padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700 }}>
-                          {d?.name?.[0] || '?'}
-                        </div>
-                        <span style={{ fontWeight: 700, fontSize: 15 }}>{d?.name || '알 수 없음'}</span>
+                  <div key={did} className="card" style={{ padding: 20 }}>
+                    {/* 아바타 + 이름 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                      <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, flexShrink: 0 }}>
+                        {d?.name?.[0] || '?'}
                       </div>
-                      <span style={{ fontWeight: 800, fontSize: 16, color: 'var(--accent)' }}>₩{total.toLocaleString()}</span>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 16 }}>{d?.name || '알 수 없음'}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text2)' }}>{items.length}개 주제</div>
+                      </div>
                     </div>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                      <thead>
-                        <tr style={{ background: 'var(--sidebar-bg)', borderBottom: '1px solid var(--border)' }}>
-                          <th style={{ padding: '8px 20px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)' }}>주제명</th>
-                          <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: 'var(--text2)' }}>페이지</th>
-                          <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: 'var(--text2)' }}>템플릿 수</th>
-                          <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: 'var(--text2)' }}>컨셉비</th>
-                          <th style={{ padding: '8px 20px', textAlign: 'right', fontWeight: 600, color: 'var(--text2)' }}>정산금액</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {items.map((item, i) => (
-                          <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                            <td style={{ padding: '10px 20px', fontWeight: 500 }}>{item.topicName}</td>
-                            <td style={{ padding: '10px 12px', textAlign: 'center', color: 'var(--text2)' }}>{item.pages}p</td>
-                            <td style={{ padding: '10px 12px', textAlign: 'center', color: 'var(--text2)' }}>{item.tmplCount}개</td>
-                            <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text2)' }}>₩{item.conceptFee.toLocaleString()}</td>
-                            <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>₩{item.amount.toLocaleString()}</td>
-                          </tr>
-                        ))}
-                        <tr style={{ background: 'var(--sidebar-bg)' }}>
-                          <td colSpan={4} style={{ padding: '10px 20px', fontWeight: 700, textAlign: 'right', color: 'var(--text2)' }}>소계</td>
-                          <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 800, color: 'var(--accent)' }}>₩{total.toLocaleString()}</td>
-                        </tr>
-                      </tbody>
-                    </table>
+
+                    {/* 통계 그리드 */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+                      <div style={{ background: 'var(--sidebar-bg)', borderRadius: 8, padding: '10px 12px' }}>
+                        <div style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 600, marginBottom: 4 }}>총 페이지</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>{totalPages}p</div>
+                      </div>
+                      <div style={{ background: 'var(--sidebar-bg)', borderRadius: 8, padding: '10px 12px' }}>
+                        <div style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 600, marginBottom: 4 }}>총 템플릿</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>{totalTmpl}개</div>
+                      </div>
+                      <div style={{ background: 'var(--sidebar-bg)', borderRadius: 8, padding: '10px 12px' }}>
+                        <div style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 600, marginBottom: 4 }}>컨셉비 합계</div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>₩{totalConceptFee.toLocaleString()}</div>
+                      </div>
+                      <div style={{ background: 'var(--accent-bg)', border: '1.5px solid var(--accent)', borderRadius: 8, padding: '10px 12px' }}>
+                        <div style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 600, marginBottom: 4 }}>정산금액</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--accent)' }}>₩{total.toLocaleString()}</div>
+                      </div>
+                    </div>
+
+                    {/* 주제 목록 */}
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {items.map((item, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text2)' }}>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>{item.topicName}</span>
+                          <span style={{ fontWeight: 600, color: 'var(--text)', flexShrink: 0 }}>₩{item.amount.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )
               })}
