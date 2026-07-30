@@ -6,6 +6,7 @@ import Topics from './pages/Topics'
 import Designers from './pages/Designers'
 import Labels from './pages/Labels'
 import Team from './pages/Team'
+import Settlement from './pages/Settlement'
 import Login from './pages/Login'
 import DesignerView from './pages/DesignerView'
 import './App.css'
@@ -30,6 +31,7 @@ function AppInner() {
     { id: 'topics',      label: '작업주제',  icon: '📁' },
     { id: 'designers',   label: '디자이너',  icon: '👤' },
     { id: 'labels',      label: '라벨 관리', icon: '🏷️' },
+    { id: 'settlement',  label: '정산',      icon: '💰' },
     ...(isSuperadmin ? [{ id: 'team', label: '팀 관리', icon: '👥' }] : []),
   ]
 
@@ -60,6 +62,7 @@ function AppInner() {
         {page === 'topics'      && <Topics />}
         {page === 'designers'   && <Designers />}
         {page === 'labels'      && <Labels />}
+        {page === 'settlement'  && <Settlement />}
         {page === 'team'        && isSuperadmin && <Team />}
       </main>
     </div>

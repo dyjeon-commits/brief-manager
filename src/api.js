@@ -107,7 +107,9 @@ export async function deleteAssignment(id) {
   await supabase.from('assignments').delete().eq('id', id)
 }
 export async function updateAssignmentStatus(id, status) {
-  await supabase.from('assignments').update({ status }).eq('id', id)
+  const update = { status }
+  if (status === 'approved') update.approved_at = new Date().toISOString()
+  await supabase.from('assignments').update(update).eq('id', id)
 }
 export async function updateAssignmentDeadline(id, deadline) {
   await supabase.from('assignments').update({ deadline: deadline || null }).eq('id', id)
