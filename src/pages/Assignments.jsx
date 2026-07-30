@@ -270,7 +270,9 @@ export default function Assignments() {
     dragId.current = null
     // optimistic update
     setAssignments(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a))
-    await updateAssignmentStatus(id, newStatus)
+    const draggedAssignment = assignments.find(a => a.id === id)
+    const topicName = draggedAssignment ? topicMap[String(draggedAssignment.topic_id)]?.name : null
+    await updateAssignmentStatus(id, newStatus, topicName)
   }
 
   const tdStyle = { padding: '11px 16px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle', fontSize: 13 }
@@ -452,7 +454,7 @@ export default function Assignments() {
                         </td>
                         <td style={tdStyle}>
                           <select style={{ padding: '5px 8px', border: `1.5px solid ${statusInfo.color}`, borderRadius: 7, background: statusInfo.bg, fontSize: 12, cursor: 'pointer', color: statusInfo.color, fontWeight: 600 }}
-                            value={a.status || 'not_submitted'} onChange={async e => { await updateAssignmentStatus(a.id, e.target.value); load() }}>
+                            value={a.status || 'not_submitted'} onChange={async e => { await updateAssignmentStatus(a.id, e.target.value, topicMap[String(a.topic_id)]?.name); load() }}>
                             {STATUS_COLUMNS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                           </select>
                         </td>

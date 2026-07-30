@@ -208,7 +208,7 @@ export default function Designers() {
                           {t?.brief_url && <a href={t.brief_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>기획서 열기 →</a>}
                         </div>
                         <select value={status}
-                          onChange={async e => { await updateAssignmentStatus(a.id, e.target.value); load() }}
+                          onChange={async e => { await updateAssignmentStatus(a.id, e.target.value, topicMap[String(a.topic_id)]?.name); load() }}
                           style={{ padding: '4px 8px', border: `1.5px solid ${color}`, borderRadius: 6, background: color + '11', color, fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%' }}>
                           {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'assigned').map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                         </select>

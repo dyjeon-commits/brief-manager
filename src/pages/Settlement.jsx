@@ -76,7 +76,7 @@ export default function Settlement() {
     if (!designerSettlements[did]) designerSettlements[did] = { items: [], total: 0 }
     const isVariation = tmplList.length > 0
     designerSettlements[did].items.push({
-      topicName: t?.name || '(삭제된 주제)',
+      topicName: t?.name || a.topic_name || '(삭제된 주제)',
       pages,
       tmplCount,
       conceptFee,
