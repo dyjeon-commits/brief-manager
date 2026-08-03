@@ -90,7 +90,8 @@ export async function updateTopic(data) {
 }
 export async function deleteTopic(id) {
   await supabase.from('template_assignments').delete().eq('topic_id', id)
-  await supabase.from('assignments').delete().eq('topic_id', id)
+  // 심사완료(approved)된 배정은 정산 내역 보존을 위해 삭제하지 않음
+  await supabase.from('assignments').delete().eq('topic_id', id).is('approved_at', null)
   await supabase.from('topic_labels').delete().eq('topic_id', id)
   await supabase.from('topics').delete().eq('id', id)
 }
