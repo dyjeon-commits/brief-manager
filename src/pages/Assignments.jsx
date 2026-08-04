@@ -108,11 +108,11 @@ export default function Assignments() {
     if (!form.designerId || form.topicIds.length === 0) return
     setSaving(true)
     for (const topicId of form.topicIds) {
-      if (!assignedTopicIds.includes(String(topicId))) {
+      if (allowDuplicate || !assignedTopicIds.includes(String(topicId))) {
         await addAssignment({ designerId: Number(form.designerId), topicId: Number(topicId) })
       }
     }
-    setSaving(false); setModal(false); setForm({ designerId: '', topicIds: [] }); load()
+    setSaving(false); setModal(false); setForm({ designerId: '', topicIds: [] }); setAllowDuplicate(false); load()
   }
 
   const getDesignerGrade = (did) => {
