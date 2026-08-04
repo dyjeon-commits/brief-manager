@@ -511,13 +511,7 @@ export default function Assignments() {
               </select>
             </div>
             <div className="fg">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label>작업주제 선택 * (복수 선택 가능)</label>
-                <button type="button" onClick={() => setAllowDuplicate(p => !p)}
-                  style={{ fontSize: 12, padding: '4px 10px', borderRadius: 20, border: `1.5px solid ${allowDuplicate ? 'var(--accent)' : 'var(--border)'}`, background: allowDuplicate ? 'var(--accent-bg)' : 'white', color: allowDuplicate ? 'var(--accent)' : 'var(--text2)', cursor: 'pointer', fontWeight: 600 }}>
-                  {allowDuplicate ? '✓ 추가 배정 모드' : '+ 추가 배정'}
-                </button>
-              </div>
+              <label>작업주제 선택 * (복수 선택 가능)</label>
               <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 300, overflowY: 'auto' }}>
                 {topics.map(t => {
                   const alreadyAssigned = assignedTopicIds.includes(String(t.id))
@@ -547,13 +541,19 @@ export default function Assignments() {
                 })}
               </div>
             </div>
-            <div className="ma">
+            <div className="ma" style={{ justifyContent: 'space-between' }}>
+              <button type="button" onClick={() => setAllowDuplicate(p => !p)}
+                style={{ fontSize: 12, padding: '6px 12px', borderRadius: 20, border: `1.5px solid ${allowDuplicate ? 'var(--accent)' : 'var(--border)'}`, background: allowDuplicate ? 'var(--accent-bg)' : 'white', color: allowDuplicate ? 'var(--accent)' : 'var(--text2)', cursor: 'pointer', fontWeight: 600 }}>
+                {allowDuplicate ? '✓ 추가 배정 모드' : '+ 추가 배정'}
+              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-ghost" onClick={() => { setModal(false); setAllowDuplicate(false) }}>취소</button>
               <button className="btn btn-primary" onClick={save}
                 disabled={!form.designerId || form.topicIds.length === 0 || saving}
                 style={{ opacity: (!form.designerId || form.topicIds.length === 0) ? 0.5 : 1 }}>
                 {saving ? '배정 중...' : form.topicIds.length > 0 ? `${form.topicIds.length}개 배정` : '배정'}
               </button>
+              </div>
             </div>
           </div>
         </div>
