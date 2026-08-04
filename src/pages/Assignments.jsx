@@ -25,6 +25,7 @@ export default function Assignments() {
   const [topicLabels, setTopicLabels] = useState([])
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState({ designerId: '', topicIds: [] })
+  const [allowDuplicate, setAllowDuplicate] = useState(false)
   const [filterDesigner, setFilterDesigner] = useState('all')
   const [showAutoModal, setShowAutoModal] = useState(false)
   const [autoSuggestions, setAutoSuggestions] = useState([])
@@ -499,7 +500,7 @@ export default function Assignments() {
       )}
 
       {modal && (
-        <div className="overlay" onClick={() => setModal(false)}>
+        <div className="overlay" onClick={() => { setModal(false); setAllowDuplicate(false) }}>
           <div className="modal" style={{ width: 520 }} onClick={e => e.stopPropagation()}>
             <h2>배정 추가</h2>
             <div className="fg">
@@ -510,17 +511,23 @@ export default function Assignments() {
               </select>
             </div>
             <div className="fg">
-              <label>작업주제 선택 * (복수 선택 가능)</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label>작업주제 선택 * (복수 선택 가능)</label>
+                <button type="button" onClick={() => setAllowDuplicate(p => !p)}
+                  style={{ fontSize: 12, padding: '4px 10px', borderRadius: 20, border: `1.5px solid ${allowDuplicate ? 'var(--accent)' : 'var(--border)'}`, background: allowDuplicate ? 'var(--accent-bg)' : 'white', color: allowDuplicate ? 'var(--accent)' : 'var(--text2)', cursor: 'pointer', fontWeight: 600 }}>
+                  {allowDuplicate ? '✓ 추가 배정 모드' : '+ 추가 배정'}
+                </button>
+              </div>
               <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 300, overflowY: 'auto' }}>
                 {topics.map(t => {
                   const alreadyAssigned = assignedTopicIds.includes(String(t.id))
                   const selected = form.topicIds.includes(String(t.id))
                   return (
-                    <div key={t.id} onClick={() => !alreadyAssigned && toggleTopic(String(t.id))}
+                    <div key={t.id} onClick={() => (!alreadyAssigned || allowDuplicate) && toggleTopic(String(t.id))}
                       style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--border)',
-                        cursor: alreadyAssigned ? 'not-allowed' : 'pointer',
-                        background: selected ? 'var(--accent-bg)' : alreadyAssigned ? '#f9fafb' : 'white',
-                        opacity: alreadyAssigned ? 0.5 : 1, userSelect: 'none' }}>
+                        cursor: (!alreadyAssigned || allowDuplicate) ? 'pointer' : 'not-allowed',
+                        background: selected ? 'var(--accent-bg)' : (alreadyAssigned && !allowDuplicate) ? '#f9fafb' : 'white',
+                        opacity: (alreadyAssigned && !allowDuplicate) ? 0.5 : 1, userSelect: 'none' }}>
                       <div style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0, border: selected ? 'none' : '1.5px solid var(--border)', background: selected ? 'var(--accent)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         {selected && <span style={{ color: 'white', fontSize: 12, fontWeight: 700 }}>✓</span>}
                       </div>
@@ -541,7 +548,7 @@ export default function Assignments() {
               </div>
             </div>
             <div className="ma">
-              <button className="btn btn-ghost" onClick={() => setModal(false)}>취소</button>
+              <button className="btn btn-ghost" onClick={() => { setModal(false); setAllowDuplicate(false) }}>취소</button>
               <button className="btn btn-primary" onClick={save}
                 disabled={!form.designerId || form.topicIds.length === 0 || saving}
                 style={{ opacity: (!form.designerId || form.topicIds.length === 0) ? 0.5 : 1 }}>

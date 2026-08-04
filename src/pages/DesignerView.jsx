@@ -167,11 +167,28 @@ export default function DesignerView({ token }) {
             {assignments.length > 0 && (
               <div style={{ marginBottom: 32 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-                  {[...assignments].sort((a, b) => {
-              const da = topicMap[String(a.topic_id)]?.deadline || '9999-99-99'
-              const db = topicMap[String(b.topic_id)]?.deadline || '9999-99-99'
-              return da.localeCompare(db)
-            }).map(a => <AssignmentCard key={a.id} a={a} t={topicMap[String(a.topic_id)]} tmplIdxList={templateAssignments.filter(tm => String(tm.topic_id) === String(a.topic_id)).map(tm => tm.template_idx).sort((x,y)=>x-y)} />)}
+                  {(() => {
+                    // 같은 주제 묶기 (topic_id 기준)
+                    const grouped = {}
+                    assignments.forEach(a => {
+                      const key = String(a.topic_id)
+                      if (!grouped[key]) grouped[key] = []
+                      grouped[key].push(a)
+                    })
+                    return Object.entries(grouped)
+                      .sort(([, as], [, bs]) => {
+                        const da = topicMap[String(as[0].topic_id)]?.deadline || '9999-99-99'
+                        const db = topicMap[String(bs[0].topic_id)]?.deadline || '9999-99-99'
+                        return da.localeCompare(db)
+                      })
+                      .map(([topicId, group]) => {
+                        const a = group[0]
+                        const t = topicMap[topicId]
+                        const tmplIdxList = templateAssignments.filter(tm => String(tm.topic_id) === topicId).map(tm => tm.template_idx).sort((x,y)=>x-y)
+                        const extraQty = group.length - 1
+                        return <AssignmentCard key={topicId} a={a} t={t} tmplIdxList={tmplIdxList} extraQty={extraQty} />
+                      })
+                  })()}
                 </div>
               </div>
             )}
@@ -222,7 +239,7 @@ function NoticeAccordion({ n }) {
   )
 }
 
-function AssignmentCard({ a, t, tmplIdxList = [] }) {
+function AssignmentCard({ a, t, tmplIdxList = [], extraQty = 0 }) {
   const isOverdue = t?.deadline && a.status !== 'completed' && a.status !== 'approved' && new Date(t.deadline) < new Date()
   const status = a.status || 'not_submitted'
   const isPremium = a.tier === 'premium'
@@ -257,7 +274,7 @@ function AssignmentCard({ a, t, tmplIdxList = [] }) {
         <div style={{ padding: '10px 16px', background: '#dbeafe', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 72 }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8' }}>총 제작 수량</span>
           <span style={{ fontSize: 20, fontWeight: 800, color: '#2563eb' }}>
-            {tmplIdxList.length > 0 ? tmplIdxList.length : (t?.qty_per_person || 1)}개
+            {(tmplIdxList.length > 0 ? tmplIdxList.length : (t?.qty_per_person || 1)) + extraQty * (t?.qty_per_person || 1)}개
           </span>
         </div>
         {tmplIdxList.length > 0 && (
