@@ -160,6 +160,7 @@ export default function Designers() {
                     ))}
                   </div>
                 )}
+                {d.monthly_limit && <div style={{ fontSize: 12, color: '#0891b2', marginTop: 8, fontWeight: 600 }}>💰 월 한도 ₩{d.monthly_limit.toLocaleString()}</div>}
                 {d.note && <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>{d.note}</div>}
                 <div onClick={() => setDetailId(d.id)}
                   style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text2)', cursor: 'pointer' }}>
