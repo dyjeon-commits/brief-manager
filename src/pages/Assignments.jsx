@@ -104,8 +104,40 @@ export default function Assignments() {
     }))
   }
 
+  function calcMonthlyAmount(designerId) {
+    const now = new Date()
+    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    return assignments
+      .filter(a => String(a.designer_id) === String(designerId))
+      .reduce((sum, a) => {
+        const t = topicMap[String(a.topic_id)]
+        const tmplCount = templateAssignments.filter(ta => String(ta.designer_id) === String(designerId) && String(ta.topic_id) === String(a.topic_id)).length
+        const qty = tmplCount > 0 ? tmplCount : (t?.qty_per_person || 1)
+        const conceptFee = t?.concept_fee ?? 200000
+        const pages = t?.pages || 0
+        return sum + (conceptFee + 15000 * pages) * qty
+      }, 0)
+  }
+
   async function save() {
     if (!form.designerId || form.topicIds.length === 0) return
+    const designer = designers.find(d => String(d.id) === String(form.designerId))
+    if (designer?.monthly_limit) {
+      const currentAmount = calcMonthlyAmount(form.designerId)
+      const addAmount = form.topicIds.reduce((sum, topicId) => {
+        const t = topicMap[String(topicId)]
+        const qty = t?.qty_per_person || 1
+        const conceptFee = t?.concept_fee ?? 200000
+        const pages = t?.pages || 0
+        return sum + (conceptFee + 15000 * pages) * qty
+      }, 0)
+      if (currentAmount + addAmount > designer.monthly_limit) {
+        const ok = window.confirm(
+          `⚠️ ${designer.name}의 월 한도(₩${designer.monthly_limit.toLocaleString()})를 초과합니다.\n현재 배정 예상 정산: ₩${currentAmount.toLocaleString()}\n추가 예상 정산: ₩${addAmount.toLocaleString()}\n합계: ₩${(currentAmount + addAmount).toLocaleString()}\n\n계속 배정하시겠어요?`
+        )
+        if (!ok) return
+      }
+    }
     setSaving(true)
     for (const topicId of form.topicIds) {
       if (allowDuplicate || !assignedTopicIds.includes(String(topicId))) {

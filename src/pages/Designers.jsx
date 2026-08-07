@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { getAll, addDesigner, updateDesigner, deleteDesigner, setDesignerLabels, updateAssignmentStatus, deleteAssignment } from '../api'
 import { useAuth } from '../AuthContext'
 
-const EMPTY = { name: '', nickname: '', contact: '', specialty: '', note: '' }
+const EMPTY = { name: '', nickname: '', contact: '', specialty: '', note: '', monthlyLimit: '' }
 
 export default function Designers() {
   const { profile } = useAuth()
@@ -36,7 +36,7 @@ export default function Designers() {
 
   function openAdd() { setForm(EMPTY); setSelectedLabels([]); setEditId(null); setModal(true) }
   function openEdit(d) {
-    setForm({ name: d.name, nickname: d.nickname || '', contact: d.contact || '', specialty: d.specialty || '', note: d.note || '' })
+    setForm({ name: d.name, nickname: d.nickname || '', contact: d.contact || '', specialty: d.specialty || '', note: d.note || '', monthlyLimit: d.monthly_limit ? String(d.monthly_limit) : '' })
     const myLabels = designerLabels.filter(dl => dl.designer_id === d.id).map(dl => dl.label_id)
     setSelectedLabels(myLabels)
     setEditId(d.id); setModal(true)
@@ -239,6 +239,10 @@ export default function Designers() {
                 <input value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} />
               </div>
             ))}
+            <div className="fg">
+              <label>월 한도 금액</label>
+              <input type="number" value={form.monthlyLimit} onChange={e => setForm(p => ({ ...p, monthlyLimit: e.target.value }))} placeholder="예: 2000000 (미설정 시 한도 없음)" />
+            </div>
             {labels.filter(l => !l.parent_id).length > 0 && (
               <div className="fg">
                 <label>라벨</label>

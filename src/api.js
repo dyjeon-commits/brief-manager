@@ -36,12 +36,21 @@ export async function getAll(pmId = null, isSuperadmin = false) {
 }
 
 export async function addDesigner(data, pmId) {
-  const { data: result } = await supabase.from('designers').insert({ ...data, pm_id: pmId }).select().single()
+  const { data: result } = await supabase.from('designers').insert({
+    name: data.name, nickname: data.nickname, contact: data.contact,
+    specialty: data.specialty, note: data.note,
+    monthly_limit: data.monthlyLimit ? parseInt(data.monthlyLimit) : null,
+    pm_id: pmId
+  }).select().single()
   return result
 }
 export async function updateDesigner(data) {
   const { id, ...rest } = data
-  await supabase.from('designers').update(rest).eq('id', id)
+  await supabase.from('designers').update({
+    name: rest.name, nickname: rest.nickname, contact: rest.contact,
+    specialty: rest.specialty, note: rest.note,
+    monthly_limit: rest.monthlyLimit ? parseInt(rest.monthlyLimit) : null,
+  }).eq('id', id)
 }
 
 // Template assignments
