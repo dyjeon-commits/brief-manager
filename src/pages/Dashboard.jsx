@@ -154,7 +154,8 @@ export default function Dashboard({ onNavigate }) {
     completed:  assignments.filter(a => a.status === 'approved').length,
     overdue:    assignments.filter(a => {
       const t = topicMap[String(a.topic_id)]
-      return t?.deadline && a.status !== 'approved' && new Date(t.deadline) < new Date()
+      const deadline = a.deadline || t?.deadline
+      return deadline && a.status !== 'approved' && new Date(deadline) < new Date()
     }).length,
   }
 
