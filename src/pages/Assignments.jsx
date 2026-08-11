@@ -441,7 +441,7 @@ export default function Assignments() {
                     const overdue = isOverdue(a)
                     const statusInfo = STATUS_MAP[a.status] || STATUS_MAP['not_submitted']
                     rows.push(
-                      <tr key={a.id} style={{ background: overdue ? '#fff5f5' : undefined }}>
+                      <tr key={a.id} style={{ background: overdue ? '#fff5f5' : undefined, outline: overdue ? '1.5px solid #fca5a5' : undefined, outlineOffset: '-1px' }}>
                         <td style={tdStyle}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
