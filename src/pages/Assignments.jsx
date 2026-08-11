@@ -392,7 +392,7 @@ export default function Assignments() {
                         <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 6, lineHeight: 1.4 }}>{t?.name || '-'}</div>
                         {/* 메타 */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
-                          {t?.deadline && <span style={{ fontSize: 11, color: overdue ? '#dc2626' : 'var(--text2)' }}>📅 {t.deadline}</span>}
+                          {(a.deadline || t?.deadline) && <span style={{ fontSize: 11, color: overdue ? '#dc2626' : 'var(--text2)' }}>📅 {a.deadline || t.deadline}</span>}
                           {t?.pages && <span style={{ fontSize: 11, color: 'var(--text2)' }}>· {t.pages}p</span>}
                         </div>
                         {t?.brief_url && (
