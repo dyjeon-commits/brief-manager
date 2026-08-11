@@ -13,7 +13,12 @@ import './App.css'
 
 function AppInner() {
   const { user, profile, loading, signOut } = useAuth()
-  const [page, setPage] = useState('dashboard')
+  const [page, setPage] = useState(() => localStorage.getItem('currentPage') || 'dashboard')
+
+  const navigate = (p) => {
+    localStorage.setItem('currentPage', p)
+    setPage(p)
+  }
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: 15 }}>
@@ -41,7 +46,7 @@ function AppInner() {
         <div className="logo">기획서 배정</div>
         <nav>
           {NAV.map(n => (
-            <button key={n.id} className={`nav-item ${page === n.id ? 'active' : ''}`} onClick={() => setPage(n.id)}>
+            <button key={n.id} className={`nav-item ${page === n.id ? 'active' : ''}`} onClick={() => navigate(n.id)}>
               <span>{n.icon}</span>{n.label}
             </button>
           ))}
@@ -57,7 +62,7 @@ function AppInner() {
         </div>
       </aside>
       <main className="main">
-        {page === 'dashboard'   && <Dashboard onNavigate={setPage} />}
+        {page === 'dashboard'   && <Dashboard onNavigate={navigate} />}
         {page === 'assignments' && <Assignments />}
         {page === 'topics'      && <Topics />}
         {page === 'designers'   && <Designers />}
