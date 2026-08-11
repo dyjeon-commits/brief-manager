@@ -151,7 +151,7 @@ export default function Dashboard({ onNavigate }) {
   const stats = {
     total:      totalTemplates,
     inprogress: assignments.filter(a => a.status === 'inprogress').length,
-    completed:  assignments.filter(a => a.status === 'completed').length,
+    completed:  assignments.filter(a => a.status === 'approved').length,
     overdue:    assignments.filter(a => {
       const t = topicMap[String(a.topic_id)]
       return t?.deadline && a.status !== 'completed' && new Date(t.deadline) < new Date()
@@ -206,7 +206,7 @@ export default function Dashboard({ onNavigate }) {
         {[
           { label: '총 예상 템플릿 수', value: stats.total,      accent: '#6366f1' },
           { label: '진행중',    value: stats.inprogress, accent: '#3b82f6' },
-          { label: '완료',      value: stats.completed,  accent: '#22c55e' },
+          { label: '심사 완료', value: stats.completed,  accent: '#22c55e' },
           { label: '마감초과',  value: stats.overdue,    accent: '#ef4444' },
         ].map(s => (
           <div key={s.label} className="card" style={{ padding: '20px 22px', borderLeft: `4px solid ${s.accent}` }}>
