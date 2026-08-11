@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { getAll, addAssignment, deleteAssignment, updateAssignmentStatus, updateAssignmentDeadline, setAssignmentTiers } from '../api'
+import { addAssignment, deleteAssignment, updateAssignmentStatus, updateAssignmentDeadline, setAssignmentTiers } from '../api'
 import { useAuth } from '../AuthContext'
-import { supabase } from '../AuthContext'
+import { useData } from '../DataContext'
 
 const STATUS_COLUMNS = [
   { value: 'not_submitted', label: '제출 안함', color: '#94a3b8', bg: '#f1f5f9' },
@@ -16,13 +16,8 @@ const STATUS_MAP = Object.fromEntries(STATUS_COLUMNS.map(s => [s.value, s]))
 export default function Assignments() {
   const { profile } = useAuth()
   const isSuperadmin = profile?.role === 'superadmin'
+  const { designers, topics, assignments, labels, designerLabels, topicLabels, templateAssignments, loading, refresh } = useData()
 
-  const [assignments, setAssignments] = useState([])
-  const [designers, setDesigners] = useState([])
-  const [topics, setTopics] = useState([])
-  const [labels, setLabels] = useState([])
-  const [designerLabels, setDesignerLabels] = useState([])
-  const [topicLabels, setTopicLabels] = useState([])
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState({ designerId: '', topicIds: [] })
   const [allowDuplicate, setAllowDuplicate] = useState(false)
@@ -35,8 +30,6 @@ export default function Assignments() {
   const [autoSuggestions, setAutoSuggestions] = useState([])
   const [selectedAuto, setSelectedAuto] = useState([])
   const [autoTopicId, setAutoTopicId] = useState(null)
-  const [templateAssignments, setTemplateAssignments] = useState([])
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [viewMode, setViewMode] = useState('table')
   const [tierMap, setTierMap] = useState({})
@@ -48,30 +41,11 @@ export default function Assignments() {
   const [minCounts, setMinCounts] = useState({})   // {topicId: number}
   const dragId = useRef(null)
 
-  useEffect(() => { if (profile) load() }, [profile])
-
-  async function load() {
-    setLoading(true)
-    const data = await getAll(profile?.id, isSuperadmin)
-    setAssignments(data.assignments || [])
-    setDesigners(data.designers || [])
-    setTopics(data.topics || [])
-    setLabels(data.labels || [])
-    setDesignerLabels(data.designerLabels || [])
-    setTopicLabels(data.topicLabels || [])
-
-    if (data.designers?.length > 0) {
-      const { data: tmpl } = await supabase.from('template_assignments').select('*')
-        .in('designer_id', data.designers.map(d => d.id))
-      setTemplateAssignments(tmpl || [])
-    }
-
+  useEffect(() => {
     const tierInit = {}
-    ;(data.assignments || []).forEach(a => { tierInit[a.id] = a.tier || 'standard' })
+    assignments.forEach(a => { tierInit[a.id] = a.tier || 'standard' })
     setTierMap(tierInit)
-
-    setLoading(false)
-  }
+  }, [assignments])
 
   async function saveTiers() {
     setTierSaving(true)
@@ -106,7 +80,7 @@ export default function Assignments() {
     for (const dId of selectedAuto) {
       await addAssignment({ designerId: dId, topicId: autoTopicId })
     }
-    setSaving(false); setShowAutoModal(false); load()
+    setSaving(false); setShowAutoModal(false); refresh()
   }
 
   const assignedTopicIds = form.designerId
@@ -160,7 +134,7 @@ export default function Assignments() {
         await addAssignment({ designerId: Number(form.designerId), topicId: Number(topicId) })
       }
     }
-    setSaving(false); setModal(false); setForm({ designerId: '', topicIds: [] }); setAllowDuplicate(false); load()
+    setSaving(false); setModal(false); setForm({ designerId: '', topicIds: [] }); setAllowDuplicate(false); refresh()
   }
 
   const getDesignerGrade = (did) => {
@@ -269,7 +243,7 @@ export default function Assignments() {
     for (const { designerId, topicId } of all) {
       await addAssignment({ designerId, topicId })
     }
-    setSaving(false); setAutoStep(0); load()
+    setSaving(false); setAutoStep(0); refresh()
   }
 
   // 3단계: all rows merged
@@ -422,7 +396,7 @@ export default function Assignments() {
                           </a>
                         )}
                         {/* 삭제 */}
-                        <button onClick={async () => { if (confirm('배정을 삭제할까요?')) { await deleteAssignment(a.id); load() } }}
+                        <button onClick={async () => { if (confirm('배정을 삭제할까요?')) { await deleteAssignment(a.id); refresh() } }}
                           style={{ display: 'block', marginTop: 10, width: '100%', padding: '4px', fontSize: 11, color: '#dc2626', background: '#fff5f5', border: '1px solid #fca5a5', borderRadius: 6, cursor: 'pointer' }}>
                           삭제
                         </button>
@@ -487,7 +461,7 @@ export default function Assignments() {
                         <td style={{ ...tdStyle, color: overdue ? 'var(--danger)' : undefined }}>
                           <input type="date"
                             value={a.deadline || t?.deadline || ''}
-                            onChange={async e => { await updateAssignmentDeadline(a.id, e.target.value); load() }}
+                            onChange={async e => { await updateAssignmentDeadline(a.id, e.target.value); refresh() }}
                             style={{ border: 'none', background: 'transparent', fontSize: 13, color: overdue ? 'var(--danger)' : 'inherit', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }} />
                           {overdue && <span style={{ marginLeft: 6, fontSize: 11, background: '#fee2e2', color: 'var(--danger)', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>초과</span>}
                         </td>
@@ -511,13 +485,13 @@ export default function Assignments() {
                         </td>
                         <td style={tdStyle}>
                           <select style={{ padding: '5px 8px', border: `1.5px solid ${statusInfo.color}`, borderRadius: 7, background: statusInfo.bg, fontSize: 12, cursor: 'pointer', color: statusInfo.color, fontWeight: 600 }}
-                            value={a.status || 'not_submitted'} onChange={async e => { await updateAssignmentStatus(a.id, e.target.value, topicMap[String(a.topic_id)]?.name); load() }}>
+                            value={a.status || 'not_submitted'} onChange={async e => { await updateAssignmentStatus(a.id, e.target.value, topicMap[String(a.topic_id)]?.name); refresh() }}>
                             {STATUS_COLUMNS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                           </select>
                         </td>
                         <td style={tdStyle}>
                           <button className="btn btn-danger" style={{ fontSize: 12, padding: '4px 10px' }}
-                            onClick={async () => { if (confirm('배정을 삭제할까요?')) { await deleteAssignment(a.id); load() } }}>삭제</button>
+                            onClick={async () => { if (confirm('배정을 삭제할까요?')) { await deleteAssignment(a.id); refresh() } }}>삭제</button>
                         </td>
                       </tr>
                     )

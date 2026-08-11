@@ -1,38 +1,21 @@
 import React, { useState, useEffect } from 'react'
-import { getAll, addDesigner, updateDesigner, deleteDesigner, setDesignerLabels, updateAssignmentStatus, deleteAssignment } from '../api'
+import { addDesigner, updateDesigner, deleteDesigner, setDesignerLabels, updateAssignmentStatus, deleteAssignment } from '../api'
 import { useAuth } from '../AuthContext'
+import { useData } from '../DataContext'
 
 const EMPTY = { name: '', nickname: '', contact: '', specialty: '', note: '', monthlyLimit: '' }
 
 export default function Designers({ onNavigate }) {
   const { profile } = useAuth()
-  const isSuperadmin = profile?.role === 'superadmin'
+  const { designers, assignments, topics, labels, designerLabels, loading, refresh } = useData()
+  const designerLabelsState = designerLabels
 
-  const [designers, setDesigners] = useState([])
-  const [assignments, setAssignments] = useState([])
-  const [topics, setTopics] = useState([])
-  const [labels, setLabels] = useState([])
-  const [designerLabels, setDesignerLabelsState] = useState([])
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState(EMPTY)
   const [selectedLabels, setSelectedLabels] = useState([])
   const [editId, setEditId] = useState(null)
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [detailId, setDetailId] = useState(null)
-
-  useEffect(() => { if (profile) load() }, [profile])
-
-  async function load() {
-    setLoading(true)
-    const data = await getAll(profile?.id, isSuperadmin)
-    setDesigners(data.designers || [])
-    setAssignments(data.assignments || [])
-    setTopics(data.topics || [])
-    setLabels(data.labels || [])
-    setDesignerLabelsState(data.designerLabels || [])
-    setLoading(false)
-  }
 
   function openAdd() { setForm(EMPTY); setSelectedLabels([]); setEditId(null); setModal(true) }
   function openEdit(d) {
@@ -52,14 +35,14 @@ export default function Designers({ onNavigate }) {
       id = result.id
     }
     await setDesignerLabels(id, selectedLabels)
-    setSaving(false); setModal(false); load()
+    setSaving(false); setModal(false); refresh()
   }
 
   async function remove(id) {
     const count = assignments.filter(a => String(a.designer_id) === String(id)).length
     const msg = count > 0 ? `이 디자이너의 배정 ${count}건도 함께 삭제됩니다. 계속할까요?` : '삭제할까요?'
     if (!confirm(msg)) return
-    await deleteDesigner(id); load()
+    await deleteDesigner(id); refresh()
   }
 
   const countFor = (id) => ({
@@ -213,7 +196,7 @@ export default function Designers({ onNavigate }) {
                           {t?.brief_url && <a href={t.brief_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>기획서 열기 →</a>}
                         </div>
                         <select value={status}
-                          onChange={async e => { await updateAssignmentStatus(a.id, e.target.value, topicMap[String(a.topic_id)]?.name); load() }}
+                          onChange={async e => { await updateAssignmentStatus(a.id, e.target.value, topicMap[String(a.topic_id)]?.name); refresh() }}
                           style={{ padding: '4px 8px', border: `1.5px solid ${color}`, borderRadius: 6, background: color + '11', color, fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%' }}>
                           {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'assigned').map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                         </select>

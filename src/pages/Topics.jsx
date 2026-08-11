@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { getAll, addTopic, updateTopic, deleteTopic, setTopicLabels, getTemplateAssignments, setTemplateAssignments } from '../api'
+import { addTopic, updateTopic, deleteTopic, setTopicLabels, getTemplateAssignments, setTemplateAssignments } from '../api'
 import { supabase } from '../AuthContext'
 import { useAuth } from '../AuthContext'
+import { useData } from '../DataContext'
 
 const TYPE_OPTIONS = [
   '프레젠테이션(1920x1080)', '프레젠테이션(1280x720)',
@@ -13,20 +14,15 @@ const EMPTY = { name: '', briefUrl: '', type: '', type2: '', deadline: '', pages
 export default function Topics() {
   const { profile } = useAuth()
   const isSuperadmin = profile?.role === 'superadmin'
+  const { topics, assignments, labels, topicLabels: topicLabelsData, designers, designerLabels, loading, refresh } = useData()
+  const topicLabels = topicLabelsData
 
-  const [topics, setTopics] = useState([])
-  const [assignments, setAssignments] = useState([])
-  const [labels, setLabels] = useState([])
-  const [topicLabels, setTopicLabelsState] = useState([])
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState(EMPTY)
   const [selectedLabels, setSelectedLabels] = useState([])
   const [editId, setEditId] = useState(null)
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [checkedIds, setCheckedIds] = useState([])
-  const [designers, setDesigners] = useState([])
-  const [designerLabels, setDesignerLabels] = useState([])
   // 템플릿 배분 모달
   const [tmplModal, setTmplModal] = useState(false)
   const [tmplTopic, setTmplTopic] = useState(null)
@@ -36,29 +32,17 @@ export default function Topics() {
   const [tmplSaving, setTmplSaving] = useState(false)
   const [tmplCountsPerTopic, setTmplCountsPerTopic] = useState({}) // topicId → count
 
-  useEffect(() => { if (profile) load() }, [profile])
-
-  async function load() {
-    setLoading(true)
-    const data = await getAll(profile?.id, isSuperadmin)
-    setTopics(data.topics || [])
-    setAssignments(data.assignments || [])
-    setLabels(data.labels || [])
-    setTopicLabelsState(data.topicLabels || [])
-    setDesigners(data.designers || [])
-    setDesignerLabels(data.designerLabels || [])
-
-    // fetch template_assignment counts per topic
-    if (data.topics?.length > 0) {
-      const { data: tmplRows } = await supabase.from('template_assignments').select('topic_id')
-        .in('topic_id', data.topics.map(t => t.id))
-      const counts = {}
-      ;(tmplRows || []).forEach(r => { counts[r.topic_id] = (counts[r.topic_id] || 0) + 1 })
-      setTmplCountsPerTopic(counts)
+  useEffect(() => {
+    if (topics.length > 0) {
+      supabase.from('template_assignments').select('topic_id')
+        .in('topic_id', topics.map(t => t.id))
+        .then(({ data: tmplRows }) => {
+          const counts = {}
+          ;(tmplRows || []).forEach(r => { counts[r.topic_id] = (counts[r.topic_id] || 0) + 1 })
+          setTmplCountsPerTopic(counts)
+        })
     }
-
-    setLoading(false)
-  }
+  }, [topics])
 
   function openAdd() { setForm(EMPTY); setSelectedLabels([]); setEditId(null); setModal(true) }
   function openEdit(t) {
@@ -78,14 +62,14 @@ export default function Topics() {
       id = result.id
     }
     await setTopicLabels(id, selectedLabels)
-    setSaving(false); setModal(false); load()
+    setSaving(false); setModal(false); refresh()
   }
 
   async function remove(id) {
     const count = assignments.filter(a => String(a.topic_id) === String(id)).length
     const msg = count > 0 ? `이 주제는 ${count}개의 배정이 있습니다. 삭제하면 배정도 모두 삭제됩니다. 계속할까요?` : '삭제할까요?'
     if (!confirm(msg)) return
-    await deleteTopic(id); load()
+    await deleteTopic(id); refresh()
   }
 
   async function removeChecked() {
@@ -95,7 +79,7 @@ export default function Topics() {
       : `선택한 ${checkedIds.length}개 주제를 삭제할까요?`
     if (!confirm(msg)) return
     for (const id of checkedIds) await deleteTopic(id)
-    setCheckedIds([]); load()
+    setCheckedIds([]); refresh()
   }
 
   function toggleCheck(id) {
@@ -235,7 +219,7 @@ export default function Topics() {
     for (const i of csvSelected) {
       await addTopic(csvPreview[i], profile?.id)
     }
-    setCsvImporting(false); setCsvModal(false); setCsvPreview([]); setCsvSelected([]); load()
+    setCsvImporting(false); setCsvModal(false); setCsvPreview([]); setCsvSelected([]); refresh()
   }
 
   const thStyle = { textAlign: 'left', padding: '10px 16px', fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.04em', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }

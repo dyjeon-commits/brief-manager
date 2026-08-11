@@ -1,35 +1,21 @@
 import React, { useState, useEffect } from 'react'
-import { getAll, addLabel, updateLabel, deleteLabel } from '../api'
+import { addLabel, updateLabel, deleteLabel } from '../api'
 import { useAuth } from '../AuthContext'
+import { useData } from '../DataContext'
 
 const COLORS = ['#6366f1','#3b82f6','#22c55e','#f59e0b','#ef4444','#ec4899','#8b5cf6','#14b8a6','#f97316','#64748b']
 
 export default function Labels() {
   const { profile } = useAuth()
-  const isSuperadmin = profile?.role === 'superadmin'
-  const [labels, setLabels] = useState([])
-  const [designerLabels, setDesignerLabels] = useState([])
-  const [designers, setDesigners] = useState([])
+  const { labels, designerLabels, designers, loading, refresh } = useData()
   const [modal, setModal] = useState(false)
   // mode: 'category' | 'child'
   const [modalMode, setModalMode] = useState('category')
   const [parentId, setParentId] = useState(null)
   const [form, setForm] = useState({ name: '', color: '#6366f1' })
   const [editId, setEditId] = useState(null)
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [checkedIds, setCheckedIds] = useState([])
-
-  useEffect(() => { if (profile) load() }, [profile])
-
-  async function load() {
-    setLoading(true)
-    const data = await getAll(profile?.id, isSuperadmin)
-    setLabels(data.labels || [])
-    setDesignerLabels(data.designerLabels || [])
-    setDesigners(data.designers || [])
-    setLoading(false)
-  }
 
   function openAddCategory() {
     setForm({ name: '', color: '#6366f1' })
@@ -54,7 +40,7 @@ export default function Labels() {
     try {
       if (editId) await updateLabel(editId, form.name.trim(), form.color)
       else await addLabel(form.name.trim(), form.color, profile?.id, parentId)
-      setModal(false); load()
+      setModal(false); refresh()
     } catch (e) {
       alert('저장 실패: ' + e.message)
     }
@@ -67,7 +53,7 @@ export default function Labels() {
     if (childCount > 0) msg = `"${l.name}" 카테고리와 하위 라벨 ${childCount}개가 모두 삭제됩니다. 계속할까요?`
     else if (used > 0) msg = `이 라벨은 ${used}명에게 사용 중입니다. 삭제할까요?`
     if (!confirm(msg)) return
-    await deleteLabel(l.id); load()
+    await deleteLabel(l.id); refresh()
   }
 
   const categories = labels.filter(l => !l.parent_id)
@@ -81,7 +67,7 @@ export default function Labels() {
   async function removeChecked() {
     if (!confirm(`선택한 카테고리 ${checkedIds.length}개를 삭제할까요? 하위 라벨도 함께 삭제됩니다.`)) return
     for (const id of checkedIds) await deleteLabel(id)
-    setCheckedIds([]); load()
+    setCheckedIds([]); refresh()
   }
 
   function toggleCheck(id) {

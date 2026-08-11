@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { AuthProvider, useAuth } from './AuthContext'
+import { DataProvider } from './DataContext'
 import Dashboard from './pages/Dashboard'
 import Assignments from './pages/Assignments'
 import Topics from './pages/Topics'
@@ -77,7 +78,9 @@ function AppInner() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppInner />
+      <DataProvider>
+        <AppInner />
+      </DataProvider>
     </AuthProvider>
   )
 }

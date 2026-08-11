@@ -1,44 +1,28 @@
 import React, { useState, useEffect } from 'react'
-import { getAll } from '../api'
 import { useAuth } from '../AuthContext'
+import { supabase } from '../AuthContext'
+import { useData } from '../DataContext'
 
 export default function Settlement() {
   const { profile } = useAuth()
   const isSuperadmin = profile?.role === 'superadmin'
+  const { designers, topics, templateAssignments, loading } = useData()
 
-  const [designers, setDesigners] = useState([])
   const [assignments, setAssignments] = useState([])
-  const [topics, setTopics] = useState([])
-  const [templateAssignments, setTemplateAssignments] = useState([])
-  const [loading, setLoading] = useState(true)
 
   const now = new Date()
   const [selectedMonth, setSelectedMonth] = useState(
     `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   )
 
-  useEffect(() => { if (profile) load() }, [profile])
-
-  async function load() {
-    setLoading(true)
-    const { supabase } = await import('../AuthContext')
-    const data = await getAll(profile?.id, isSuperadmin)
-    setDesigners(data.designers || [])
-    setTopics(data.topics || [])
-
-    // approved_at 포함해서 assignments 로드
-    const dIds = (data.designers || []).map(d => d.id)
-    let q = supabase.from('assignments').select('*').not('approved_at', 'is', null)
-    const { data: allApproved } = await q
-    const approvedAssignments = (allApproved || []).filter(a => dIds.includes(a.designer_id))
-
-    // template_assignments
-    const { data: tmplData } = await supabase.from('template_assignments').select('*')
-
-    setAssignments(approvedAssignments || [])
-    setTemplateAssignments(tmplData || [])
-    setLoading(false)
-  }
+  useEffect(() => {
+    if (!profile?.id || designers.length === 0) return
+    const dIds = designers.map(d => d.id)
+    supabase.from('assignments').select('*').not('approved_at', 'is', null)
+      .then(({ data: allApproved }) => {
+        setAssignments((allApproved || []).filter(a => dIds.includes(a.designer_id)))
+      })
+  }, [profile?.id, designers])
 
   const topicMap = Object.fromEntries(topics.map(t => [String(t.id), t]))
   const designerMap = Object.fromEntries(designers.map(d => [String(d.id), d]))

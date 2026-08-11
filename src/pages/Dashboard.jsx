@@ -40,16 +40,14 @@ function NoticeAccordion({ n, onEdit, onDelete }) {
     </div>
   )
 }
-import { getAll, getNotices, addNotice, updateNotice, deleteNotice } from '../api'
+import { getNotices, addNotice, updateNotice, deleteNotice } from '../api'
 import { useAuth } from '../AuthContext'
-import { supabase } from '../AuthContext'
+import { useData } from '../DataContext'
 
 export default function Dashboard({ onNavigate }) {
   const { profile } = useAuth()
-  const [data, setData] = useState({ designers: [], topics: [], assignments: [] })
+  const { designers, topics, assignments, labels, designerLabels, templateAssignments, loading } = useData()
   const [notices, setNotices] = useState([])
-  const [templateAssignments, setTemplateAssignments] = useState([])
-  const [loading, setLoading] = useState(true)
   const [noticeModal, setNoticeModal] = useState(false)
   const [noticeForm, setNoticeForm] = useState({ title: '', content: '' })
   const [linkForm, setLinkForm] = useState({ text: '', url: '' })
@@ -60,25 +58,10 @@ export default function Dashboard({ onNavigate }) {
 
   const isSuperadmin = profile?.role === 'superadmin'
 
-  useEffect(() => { if (profile?.id) load() }, [profile?.id])
+  useEffect(() => { if (profile?.id) loadNotices() }, [profile?.id])
 
-  async function load() {
-    setLoading(true)
-    const [d, n] = await Promise.all([
-      getAll(profile?.id, isSuperadmin),
-      getNotices(profile?.id),
-    ])
-    setData(d)
-    setNotices(n)
-
-    // fetch template_assignments for workload calc
-    if (d.designers?.length > 0) {
-      const { data: tmpl } = await supabase.from('template_assignments').select('*')
-        .in('designer_id', d.designers.map(x => x.id))
-      setTemplateAssignments(tmpl || [])
-    }
-
-    setLoading(false)
+  async function loadNotices() {
+    setNotices(await getNotices(profile?.id))
   }
 
   async function saveNotice() {
@@ -126,7 +109,6 @@ export default function Dashboard({ onNavigate }) {
     setNotices(await getNotices(profile?.id))
   }
 
-  const { designers, topics, assignments, labels = [], designerLabels = [] } = data
   const topicMap = Object.fromEntries(topics.map(t => [String(t.id), t]))
 
   const totalTemplates = assignments.reduce((sum, a) => {
