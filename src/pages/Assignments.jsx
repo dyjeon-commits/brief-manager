@@ -171,7 +171,7 @@ export default function Assignments() {
   const isOverdue = a => {
     const t = topicMap[String(a.topic_id)]
     const deadline = a.deadline || t?.deadline
-    return deadline && a.status !== 'completed' && a.status !== 'approved' && new Date(deadline) < new Date()
+    return deadline && a.status !== 'approved' && new Date(deadline) < new Date()
   }
 
   const getDesignerLabelObjs = (id) => {
