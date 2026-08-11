@@ -348,15 +348,17 @@ export default function Assignments() {
 
 
       {/* 디자이너 필터 */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-        <select style={{ padding: '7px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--surface)', fontSize: 13 }}
-          value={filterDesigner} onChange={e => setFilterDesigner(e.target.value)}>
-          <option value="all">전체 디자이너</option>
-          {designers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
-      </div>
+      {viewMode !== 'tier' && <>
+        <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+          <select style={{ padding: '7px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--surface)', fontSize: 13 }}
+            value={filterDesigner} onChange={e => setFilterDesigner(e.target.value)}>
+            <option value="all">전체 디자이너</option>
+            {designers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+        </div>
+      </>}
 
-      {filtered.length === 0 ? (
+      {viewMode !== 'tier' && (filtered.length === 0 ? (
         <div className="card empty">
           <div className="empty-icon">📋</div>
           <p>배정 내역이 없습니다.</p>
@@ -541,7 +543,7 @@ export default function Assignments() {
             </tbody>
           </table>
         </div>
-      )}
+      ))}
 
       {viewMode === 'tier' && (() => {
         const totalTemplates = assignments.reduce((s, a) => {
