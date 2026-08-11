@@ -98,11 +98,9 @@ export default function Settlement() {
       </div>
 
       {/* 월 선택 탭 */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-        {months.length === 0 ? (
-          <div style={{ color: 'var(--text2)', fontSize: 14 }}>심사 완료된 배정이 없습니다.</div>
-        ) : (
-          months.map(m => (
+      {months.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+          {months.map(m => (
             <button key={m} onClick={() => setSelectedMonth(m)}
               style={{
                 padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none',
@@ -111,24 +109,21 @@ export default function Settlement() {
               }}>
               {m}
             </button>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
+      {/* 월 합계 */}
       {months.length > 0 && (
-        <>
-          {/* 월 합계 */}
-          <div style={{ background: 'var(--accent-bg)', border: '1.5px solid var(--accent)', borderRadius: 12, padding: '14px 20px', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--accent)' }}>{selectedMonth} 작업내역 정산 비용</span>
-            <span style={{ fontWeight: 800, fontSize: 20, color: 'var(--accent)' }}>₩{totalAll.toLocaleString()}</span>
-          </div>
+        <div style={{ background: 'var(--accent-bg)', border: '1.5px solid var(--accent)', borderRadius: 12, padding: '14px 20px', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--accent)' }}>{selectedMonth} 작업내역 정산 비용</span>
+          <span style={{ fontWeight: 800, fontSize: 20, color: 'var(--accent)' }}>₩{totalAll.toLocaleString()}</span>
+        </div>
+      )}
 
-          {/* 디자이너별 정산 카드 */}
-          {Object.keys(designerSettlements).length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text2)' }}>해당 월 정산 내역이 없습니다.</div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-              {Object.entries(designerSettlements).map(([did, { items, total }]) => {
+      {/* 디자이너별 정산 카드 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+        {Object.entries(designerSettlements).map(([did, { items, total }]) => {
                 const d = designerMap[did]
                 const totalPages = items.reduce((s, i) => s + i.pages * i.tmplCount, 0)
                 const totalTmpl = items.reduce((s, i) => s + i.tmplCount, 0)
@@ -180,11 +175,8 @@ export default function Settlement() {
                     </div>
                   </div>
                 )
-              })}
-            </div>
-          )}
-        </>
-      )}
+        })}
+      </div>
     </div>
   )
 }
