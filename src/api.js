@@ -121,6 +121,8 @@ export async function updateAssignmentStatus(id, status, topicName = null) {
   if (status === 'approved') {
     update.approved_at = new Date().toISOString()
     if (topicName) update.topic_name = topicName
+  } else {
+    update.approved_at = null
   }
   await supabase.from('assignments').update(update).eq('id', id)
 }
