@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { getAll, addAssignment, deleteAssignment, updateAssignmentStatus, updateAssignmentDeadline } from '../api'
+import { getAll, addAssignment, deleteAssignment, updateAssignmentStatus, updateAssignmentDeadline, setAssignmentTiers } from '../api'
 import { useAuth } from '../AuthContext'
 import { supabase } from '../AuthContext'
 
@@ -35,6 +35,8 @@ export default function Assignments() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [viewMode, setViewMode] = useState('table')
+  const [tierMap, setTierMap] = useState({})
+  const [tierSaving, setTierSaving] = useState(false)
   // 자동배분 wizard
   const [autoStep, setAutoStep] = useState(0) // 0=off, 1, 2, 3
   const [stepGrade, setStepGrade] = useState([])   // [{topic, selectedDesignerIds}]
@@ -60,7 +62,17 @@ export default function Assignments() {
       setTemplateAssignments(tmpl || [])
     }
 
+    const tierInit = {}
+    ;(data.assignments || []).forEach(a => { tierInit[a.id] = a.tier || 'standard' })
+    setTierMap(tierInit)
+
     setLoading(false)
+  }
+
+  async function saveTiers() {
+    setTierSaving(true)
+    await setAssignmentTiers(Object.entries(tierMap).map(([id, tier]) => ({ id, tier })))
+    setTierSaving(false)
   }
 
   const designerMap = Object.fromEntries(designers.map(d => [String(d.id), d]))
@@ -320,7 +332,7 @@ export default function Assignments() {
         <div style={{ display: 'flex', gap: 8 }}>
           {/* 표/보드 토글 */}
           <div style={{ display: 'flex', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-            {[{ id: 'table', icon: '☰', label: '표' }, { id: 'board', icon: '⊞', label: '보드' }].map(v => (
+            {[{ id: 'table', icon: '☰', label: '표' }, { id: 'board', icon: '⊞', label: '보드' }, { id: 'tier', icon: '⭐', label: '티어 배분' }].map(v => (
               <button key={v.id} onClick={() => setViewMode(v.id)}
                 style={{ padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none',
                   background: viewMode === v.id ? '#475569' : 'transparent',
@@ -530,6 +542,85 @@ export default function Assignments() {
           </table>
         </div>
       )}
+
+      {viewMode === 'tier' && (() => {
+        const totalTemplates = assignments.reduce((s, a) => {
+          const t = topicMap[String(a.topic_id)]
+          const tmplCount = templateAssignments.filter(ta => String(ta.designer_id) === String(a.designer_id) && String(ta.topic_id) === String(a.topic_id)).length
+          return s + (tmplCount > 0 ? tmplCount : (t?.qty_per_person || 1))
+        }, 0)
+        const premiumTarget = Math.round(totalTemplates * 0.2)
+        const currentPremium = Object.values(tierMap).filter(t => t === 'premium').length
+        const topicPremiumCount = {}
+        assignments.forEach(a => {
+          if (tierMap[a.id] === 'premium') {
+            topicPremiumCount[String(a.topic_id)] = (topicPremiumCount[String(a.topic_id)] || 0) + 1
+          }
+        })
+        const warnings = Object.entries(topicPremiumCount)
+          .filter(([, cnt]) => cnt >= 2)
+          .map(([tid, cnt]) => ({ topic: topicMap[tid], cnt }))
+        const byDesigner = designers
+          .map(d => ({ ...d, myAssignments: assignments.filter(a => String(a.designer_id) === String(d.id)) }))
+          .filter(d => d.myAssignments.length > 0)
+        return (
+          <div className="card" style={{ padding: '20px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <strong style={{ fontSize: 15 }}>⭐ 티어 배분</strong>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ display: 'flex', gap: 14, fontSize: 13 }}>
+                  <span style={{ color: 'var(--text2)' }}>총 <strong style={{ color: 'var(--text)' }}>{totalTemplates}</strong>개</span>
+                  <span style={{ color: '#d97706' }}>⭐ 프리미엄 <strong>{currentPremium}</strong>개 <span style={{ fontWeight: 400 }}>(목표 {premiumTarget}개)</span></span>
+                  <span style={{ color: 'var(--text2)' }}>스탠다드 <strong>{totalTemplates - currentPremium}</strong>개</span>
+                </div>
+                <button className="btn btn-primary" onClick={saveTiers} disabled={tierSaving} style={{ fontSize: 13 }}>
+                  {tierSaving ? '저장 중...' : '저장'}
+                </button>
+              </div>
+            </div>
+            {warnings.length > 0 && (
+              <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 14px', marginBottom: 14, fontSize: 13, color: '#92400e' }}>
+                ⚠️ 프리미엄 쏠림 주의 —&nbsp;
+                {warnings.map(w => <strong key={w.topic?.id}>{w.topic?.name} ({w.cnt}개)&nbsp;</strong>)}
+              </div>
+            )}
+            <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 12 }}>
+              주제 칩을 클릭해서 프리미엄 / 스탠다드를 전환하세요. 총 템플릿의 20% 기준으로 목표 수량이 표시됩니다.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {byDesigner.map(d => {
+                const myPremium = d.myAssignments.filter(a => tierMap[a.id] === 'premium').length
+                return (
+                  <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{d.name[0]}</div>
+                    <span style={{ fontWeight: 600, fontSize: 13, minWidth: 56, flexShrink: 0 }}>{d.name}</span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, flex: 1 }}>
+                      {d.myAssignments.map(a => {
+                        const t = topicMap[String(a.topic_id)]
+                        const isPremium = tierMap[a.id] === 'premium'
+                        const isWarnTopic = (topicPremiumCount[String(a.topic_id)] || 0) >= 2
+                        return (
+                          <div key={a.id}
+                            onClick={() => setTierMap(p => ({ ...p, [a.id]: isPremium ? 'standard' : 'premium' }))}
+                            style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', userSelect: 'none',
+                              background: isPremium ? '#fef3c7' : 'var(--surface)',
+                              color: isPremium ? '#92400e' : 'var(--text2)',
+                              border: isPremium ? (isWarnTopic ? '1.5px solid #f59e0b' : '1.5px solid #fde68a') : '1.5px solid var(--border)' }}>
+                            {isPremium ? '⭐ ' : ''}{t?.name || '-'}
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {myPremium > 0 && (
+                      <span style={{ fontSize: 12, color: '#d97706', fontWeight: 600, whiteSpace: 'nowrap' }}>⭐ {myPremium}개</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
 
       {modal && (
         <div className="overlay" onClick={() => { setModal(false); setAllowDuplicate(false) }}>
