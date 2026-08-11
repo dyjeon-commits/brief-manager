@@ -406,6 +406,7 @@ export default function Assignments() {
                         <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 6, lineHeight: 1.4 }}>{t?.name || '-'}</div>
                         {/* 메타 */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+                          {tierMap[a.id] === 'premium' && <span style={{ fontSize: 10, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', padding: '1px 6px', borderRadius: 10, fontWeight: 700 }}>⭐ 프리미엄</span>}
                           {(a.deadline || t?.deadline) && <span style={{ fontSize: 11, color: overdue ? '#dc2626' : 'var(--text2)' }}>📅 {a.deadline || t.deadline}</span>}
                           {t?.pages && <span style={{ fontSize: 11, color: 'var(--text2)' }}>· {t.pages}p</span>}
                         </div>
@@ -471,7 +472,12 @@ export default function Assignments() {
                             </div>
                           </div>
                         </td>
-                        <td style={{ ...tdStyle, fontWeight: 500 }}>{t?.name || '-'}</td>
+                        <td style={{ ...tdStyle, fontWeight: 500 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {t?.name || '-'}
+                            {tierMap[a.id] === 'premium' && <span style={{ fontSize: 10, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', padding: '1px 6px', borderRadius: 10, fontWeight: 700, flexShrink: 0 }}>⭐ 프리미엄</span>}
+                          </div>
+                        </td>
                         <td style={tdStyle}>{t?.type && <span style={{ background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500 }}>{t.type}</span>}</td>
                         <td style={tdStyle}>{t?.brief_url ? <a href={t.brief_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>열기 →</a> : '-'}</td>
                         <td style={{ ...tdStyle, color: overdue ? 'var(--danger)' : undefined }}>
