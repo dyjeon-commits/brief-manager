@@ -65,7 +65,7 @@ function AppInner() {
         {page === 'dashboard'   && <Dashboard onNavigate={navigate} />}
         {page === 'assignments' && <Assignments />}
         {page === 'topics'      && <Topics />}
-        {page === 'designers'   && <Designers />}
+        {page === 'designers'   && <Designers onNavigate={navigate} />}
         {page === 'labels'      && <Labels />}
         {page === 'settlement'  && <Settlement />}
         {page === 'team'        && isSuperadmin && <Team />}

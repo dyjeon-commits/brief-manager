@@ -26,7 +26,11 @@ export default function Assignments() {
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState({ designerId: '', topicIds: [] })
   const [allowDuplicate, setAllowDuplicate] = useState(false)
-  const [filterDesigner, setFilterDesigner] = useState('all')
+  const [filterDesigner, setFilterDesigner] = useState(() => {
+    const v = localStorage.getItem('assignmentFilter')
+    if (v) { localStorage.removeItem('assignmentFilter'); return v }
+    return 'all'
+  })
   const [showAutoModal, setShowAutoModal] = useState(false)
   const [autoSuggestions, setAutoSuggestions] = useState([])
   const [selectedAuto, setSelectedAuto] = useState([])

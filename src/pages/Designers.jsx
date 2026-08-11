@@ -4,7 +4,7 @@ import { useAuth } from '../AuthContext'
 
 const EMPTY = { name: '', nickname: '', contact: '', specialty: '', note: '', monthlyLimit: '' }
 
-export default function Designers() {
+export default function Designers({ onNavigate }) {
   const { profile } = useAuth()
   const isSuperadmin = profile?.role === 'superadmin'
 
@@ -164,10 +164,12 @@ export default function Designers() {
                 )}
                 {d.monthly_limit && <div style={{ fontSize: 12, color: '#0891b2', marginTop: 8, fontWeight: 600 }}>💰 월 한도 ₩{d.monthly_limit.toLocaleString()}</div>}
                 {d.note && <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>{d.note}</div>}
-                <div onClick={() => setDetailId(d.id)}
-                  style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text2)', cursor: 'pointer' }}>
-                  <span>전체 {total}건</span>
-                  <span style={{ color: 'var(--accent)', fontWeight: 600 }}>진행중 {active}건 →</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text2)' }}>
+                  <span style={{ cursor: 'pointer' }} onClick={() => setDetailId(d.id)}>전체 {total}건</span>
+                  <span style={{ color: 'var(--accent)', fontWeight: 600, cursor: 'pointer' }} onClick={() => {
+                    localStorage.setItem('assignmentFilter', String(d.id))
+                    onNavigate?.('assignments')
+                  }}>진행중 {active}건 →</span>
                 </div>
               </div>
             )
