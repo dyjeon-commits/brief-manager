@@ -291,11 +291,10 @@ export default function Assignments() {
     if (!dragId.current) return
     const id = dragId.current
     dragId.current = null
-    // optimistic update
-    setAssignments(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a))
     const draggedAssignment = assignments.find(a => a.id === id)
     const topicName = draggedAssignment ? topicMap[String(draggedAssignment.topic_id)]?.name : null
     await updateAssignmentStatus(id, newStatus, topicName)
+    refresh()
   }
 
   const tdStyle = { padding: '11px 16px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle', fontSize: 13 }
