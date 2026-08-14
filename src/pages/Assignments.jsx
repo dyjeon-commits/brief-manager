@@ -111,7 +111,8 @@ export default function Assignments() {
   async function save() {
     if (!form.designerId || form.topicIds.length === 0) return
     const designer = designers.find(d => String(d.id) === String(form.designerId))
-    if (designer?.monthly_limit) {
+    const monthlyLimit = designer?.monthly_limit ? Number(designer.monthly_limit) : 0
+    if (monthlyLimit > 0) {
       const currentAmount = calcMonthlyAmount(form.designerId)
       const addAmount = form.topicIds.reduce((sum, topicId) => {
         const t = topicMap[String(topicId)]
@@ -120,7 +121,7 @@ export default function Assignments() {
         const pages = t?.pages || 0
         return sum + (conceptFee + 15000 * pages) * qty
       }, 0)
-      if (currentAmount + addAmount > designer.monthly_limit) {
+      if (currentAmount + addAmount > monthlyLimit) {
         const ok = window.confirm(
           `⚠️ ${designer.name}의 월 한도(₩${designer.monthly_limit.toLocaleString()})를 초과합니다.\n현재 배정 예상 정산: ₩${currentAmount.toLocaleString()}\n추가 예상 정산: ₩${addAmount.toLocaleString()}\n합계: ₩${(currentAmount + addAmount).toLocaleString()}\n\n계속 배정하시겠어요?`
         )
@@ -234,11 +235,40 @@ export default function Assignments() {
   }
 
   async function confirmWizard() {
-    setSaving(true)
     const all = [
       ...stepGrade.map(r => r.selectedDesignerIds.map(did => ({ designerId: did, topicId: r.topic.id }))).flat(),
       ...stepRandom.map(r => r.selectedDesignerIds.map(did => ({ designerId: did, topicId: r.topic.id }))).flat(),
     ]
+
+    // 디자이너별 월 한도 초과 체크
+    const byDesigner = {}
+    all.forEach(({ designerId, topicId }) => {
+      if (!byDesigner[designerId]) byDesigner[designerId] = []
+      byDesigner[designerId].push(topicId)
+    })
+    for (const [designerId, topicIds] of Object.entries(byDesigner)) {
+      const designer = designers.find(d => String(d.id) === String(designerId))
+      const monthlyLimit = designer?.monthly_limit ? Number(designer.monthly_limit) : 0
+      if (monthlyLimit > 0) {
+        const currentAmount = calcMonthlyAmount(designerId)
+        const addAmount = topicIds.reduce((sum, topicId) => {
+          const t = topicMap[String(topicId)]
+          if (!t) return sum
+          const qty = t.qty_per_person || 1
+          const conceptFee = t.concept_fee ?? 200000
+          const pages = t.pages || 0
+          return sum + (conceptFee + 15000 * pages) * qty
+        }, 0)
+        if (currentAmount + addAmount > monthlyLimit) {
+          const ok = window.confirm(
+            `⚠️ ${designer.name}의 월 한도(₩${monthlyLimit.toLocaleString()})를 초과합니다.\n현재 배정 예상 정산: ₩${currentAmount.toLocaleString()}\n추가 예상 정산: ₩${addAmount.toLocaleString()}\n합계: ₩${(currentAmount + addAmount).toLocaleString()}\n\n계속 배정하시겠어요?`
+          )
+          if (!ok) return
+        }
+      }
+    }
+
+    setSaving(true)
     for (const { designerId, topicId } of all) {
       await addAssignment({ designerId, topicId })
     }
