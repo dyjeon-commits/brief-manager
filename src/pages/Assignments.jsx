@@ -259,6 +259,11 @@ export default function Assignments() {
           const pages = t.pages || 0
           return sum + (conceptFee + 15000 * pages) * qty
         }, 0)
+        console.log(`[한도체크] ${designer.name}: 한도=${monthlyLimit}, 현재=${currentAmount}, 추가=${addAmount}, 합계=${currentAmount + addAmount}`)
+        topicIds.forEach(tid => {
+          const t = topicMap[String(tid)]
+          console.log(`  주제 ${tid}: concept_fee=${t?.concept_fee}, pages=${t?.pages}, qty_per_person=${t?.qty_per_person}`)
+        })
         if (currentAmount + addAmount > monthlyLimit) {
           const ok = window.confirm(
             `⚠️ ${designer.name}의 월 한도(₩${monthlyLimit.toLocaleString()})를 초과합니다.\n현재 배정 예상 정산: ₩${currentAmount.toLocaleString()}\n추가 예상 정산: ₩${addAmount.toLocaleString()}\n합계: ₩${(currentAmount + addAmount).toLocaleString()}\n\n계속 배정하시겠어요?`
