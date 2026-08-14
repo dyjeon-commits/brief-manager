@@ -131,7 +131,7 @@ export default function Designers({ onNavigate }) {
                     <span
                       onClick={() => navigator.clipboard.writeText(d.nickname).then(() => alert(`'${d.nickname}' 복사되었습니다!`))}
                       title="닉네임 복사"
-                      style={{ marginLeft: 4, cursor: 'pointer', fontSize: 14, color: 'var(--text2)', opacity: 0.6, userSelect: 'none' }}>
+                      style={{ marginLeft: 4, cursor: 'pointer', fontSize: 18, color: '#8b5cf6', userSelect: 'none' }}>
                       ⎘
                     </span>
                   </>}
