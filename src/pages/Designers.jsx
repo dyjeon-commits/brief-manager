@@ -126,7 +126,14 @@ export default function Designers({ onNavigate }) {
                 </div>
                 <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 2 }}>
                   {d.name}
-                  {d.nickname && <span style={{ fontSize: 13, color: 'var(--text2)', fontWeight: 400, marginLeft: 6 }}>{d.nickname}</span>}
+                  {d.nickname && (
+                    <span
+                      onClick={() => { navigator.clipboard.writeText(d.nickname); alert(`'${d.nickname}' 복사되었습니다!`) }}
+                      title="클릭하여 복사"
+                      style={{ fontSize: 13, color: 'var(--text2)', fontWeight: 400, marginLeft: 6, cursor: 'pointer', padding: '1px 6px', borderRadius: 5, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                      {d.nickname} 📋
+                    </span>
+                  )}
                 </div>
                 {d.specialty && <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 500, marginBottom: 4 }}>{d.specialty}</div>}
                 {d.contact && <div style={{ fontSize: 13, color: 'var(--text2)' }}>📞 {d.contact}</div>}
