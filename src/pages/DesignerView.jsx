@@ -42,7 +42,7 @@ export default function DesignerView({ token }) {
         : supabase.from('notices').select('*').order('created_at', { ascending: false }),
     ])
 
-    const topicIds = (a || []).map(x => x.topic_id)
+    const topicIds = (a || []).map(x => x.topic_id).filter(Boolean)
     let topicData = [], tmplData = []
     if (topicIds.length > 0) {
       const [{ data: t }, { data: tm }] = await Promise.all([
