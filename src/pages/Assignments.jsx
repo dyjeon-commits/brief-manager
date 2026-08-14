@@ -807,6 +807,7 @@ export default function Assignments() {
                           <input type="number" min={isGrade ? gradeCount : 1} max={designers.length}
                             value={minCounts[row.topic.id] || (isGrade ? gradeCount : 1)}
                             onChange={e => setMinCounts(p => ({ ...p, [row.topic.id]: Math.max(isGrade ? gradeCount : 1, parseInt(e.target.value) || 1) }))}
+                            onFocus={e => e.target.select()}
                             style={{ width: 56, padding: '5px 8px', border: '1.5px solid var(--border)', borderRadius: 6, fontSize: 14, textAlign: 'center' }} />
                           <span style={{ fontSize: 12, color: 'var(--text2)' }}>명</span>
                         </div>
