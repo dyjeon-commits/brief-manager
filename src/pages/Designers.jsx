@@ -16,6 +16,7 @@ export default function Designers({ onNavigate }) {
   const [editId, setEditId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [detailId, setDetailId] = useState(null)
+  const [copiedId, setCopiedId] = useState(null)
 
   function openAdd() { setForm(EMPTY); setSelectedLabels([]); setEditId(null); setModal(true) }
   function openEdit(d) {
@@ -129,10 +130,10 @@ export default function Designers({ onNavigate }) {
                   {d.nickname && <>
                     <span style={{ fontSize: 13, color: 'var(--text2)', fontWeight: 400, marginLeft: 6 }}>{d.nickname}</span>
                     <span
-                      onClick={() => navigator.clipboard.writeText(d.nickname)}
+                      onClick={() => { navigator.clipboard.writeText(d.nickname); setCopiedId(d.id); setTimeout(() => setCopiedId(null), 1500) }}
                       title="닉네임 복사"
-                      style={{ marginLeft: 4, cursor: 'pointer', fontSize: 18, color: '#8b5cf6', userSelect: 'none' }}>
-                      ⎘
+                      style={{ marginLeft: 4, cursor: 'pointer', fontSize: 18, color: copiedId === d.id ? '#22c55e' : '#8b5cf6', userSelect: 'none', transition: 'color 0.2s' }}>
+                      {copiedId === d.id ? '✓' : '⎘'}
                     </span>
                   </>}
                 </div>
