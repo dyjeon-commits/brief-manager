@@ -95,16 +95,15 @@ export default function Assignments() {
   }
 
   function calcMonthlyAmount(designerId) {
-    const now = new Date()
-    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     return assignments
-      .filter(a => String(a.designer_id) === String(designerId))
+      .filter(a => String(a.designer_id) === String(designerId) && a.topic_id)
       .reduce((sum, a) => {
         const t = topicMap[String(a.topic_id)]
+        if (!t) return sum
         const tmplCount = templateAssignments.filter(ta => String(ta.designer_id) === String(designerId) && String(ta.topic_id) === String(a.topic_id)).length
-        const qty = tmplCount > 0 ? tmplCount : (t?.qty_per_person || 1)
-        const conceptFee = t?.concept_fee ?? 200000
-        const pages = t?.pages || 0
+        const qty = tmplCount > 0 ? tmplCount : (t.qty_per_person || 1)
+        const conceptFee = t.concept_fee ?? 200000
+        const pages = t.pages || 0
         return sum + (conceptFee + 15000 * pages) * qty
       }, 0)
   }
