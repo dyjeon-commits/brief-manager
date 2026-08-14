@@ -867,11 +867,27 @@ export default function Assignments() {
 
                   {/* 외주별 목록 */}
                   <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 300, overflowY: 'auto', marginBottom: 14 }}>
-                    {designerSummary.map(({ designer: d, topics: dTopics }) => (
-                      <div key={d.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', background: dTopics.length === 0 ? '#fafafa' : 'white' }}>
+                    {designerSummary.map(({ designer: d, topics: dTopics }) => {
+                      const monthlyLimit = d.monthly_limit ? Number(d.monthly_limit) : 0
+                      const addAmt = dTopics.reduce((sum, t) => {
+                        const qty = t.qty_per_person || 1
+                        const conceptFee = t.concept_fee ?? 200000
+                        const pages = t.pages || 0
+                        return sum + (conceptFee + 15000 * pages) * qty
+                      }, 0)
+                      const currentAmt = calcMonthlyAmount(d.id)
+                      const isOverLimit = monthlyLimit > 0 && (currentAmt + addAmt) > monthlyLimit
+                      return (
+                      <div key={d.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', background: isOverLimit ? '#fff7ed' : dTopics.length === 0 ? '#fafafa' : 'white' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: dTopics.length > 0 ? 8 : 0 }}>
                           <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>{d.name[0]}</div>
                           <span style={{ fontWeight: 700, fontSize: 13 }}>{d.name}</span>
+                          {isOverLimit && (
+                            <span title={`월 한도 ₩${monthlyLimit.toLocaleString()} 초과\n현재 ₩${currentAmt.toLocaleString()} + 추가 ₩${addAmt.toLocaleString()}`}
+                              style={{ fontSize: 11, fontWeight: 700, color: '#ea580c', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '1px 8px', flexShrink: 0 }}>
+                              ⚠️ 한도 초과
+                            </span>
+                          )}
                           <div style={{ display: 'flex', gap: 3 }}>
                             {getDesignerLabelObjs(d.id).map(l => (
                               <span key={l.id} style={{ background: l.color + '22', color: l.color, padding: '1px 6px', borderRadius: 20, fontSize: 10, fontWeight: 600 }}>{l.name}</span>
@@ -901,7 +917,8 @@ export default function Assignments() {
                           </div>
                         )}
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
 
                   {/* 주제별 배정 수 요약 */}
