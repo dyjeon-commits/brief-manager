@@ -119,7 +119,7 @@ export async function addAssignment(data) {
     designer_id: data.designerId,
     topic_id: data.topicId,
     status: 'assigned',
-    visible_at: data.visibleAt || null,
+    visible_at: data.visibleAt ? new Date(data.visibleAt + 'T00:00:00').toISOString() : null,
     settlement_month: data.settlementMonth || null,
   }).select().single()
   return result

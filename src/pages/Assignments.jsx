@@ -708,7 +708,7 @@ export default function Assignments() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <label style={{ fontSize: 12, color: 'var(--text2)', whiteSpace: 'nowrap' }}>공개 시점</label>
-                <input type="datetime-local" value={form.visibleAt}
+                <input type="date" value={form.visibleAt}
                   onChange={e => setForm(p => ({ ...p, visibleAt: e.target.value }))}
                   style={{ fontSize: 12, padding: '4px 8px', border: '1.5px solid var(--border)', borderRadius: 6 }} />
               </div>
@@ -966,7 +966,7 @@ export default function Assignments() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontSize: 12, color: 'var(--text2)', whiteSpace: 'nowrap' }}>공개 시점</span>
-                      <input type="datetime-local" value={wizardVisibleAt}
+                      <input type="date" value={wizardVisibleAt}
                         onChange={e => setWizardVisibleAt(e.target.value)}
                         style={{ fontSize: 12, padding: '4px 8px', border: '1.5px solid var(--border)', borderRadius: 6 }} />
                       <span style={{ fontSize: 11, color: 'var(--text2)', whiteSpace: 'nowrap' }}>미설정 시 즉시 공개</span>
