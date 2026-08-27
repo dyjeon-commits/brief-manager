@@ -36,7 +36,7 @@ export default function DesignerView({ token }) {
 
     const pmId = d.pm_id
     const [{ data: a }, { data: n }] = await Promise.all([
-      supabase.from('assignments').select('*').eq('designer_id', d.id),
+      supabase.from('assignments').select('*').eq('designer_id', d.id).or('visible_at.is.null,visible_at.lte.' + new Date().toISOString()),
       pmId
         ? supabase.from('notices').select('*').eq('pm_id', pmId).order('created_at', { ascending: false })
         : supabase.from('notices').select('*').order('created_at', { ascending: false }),

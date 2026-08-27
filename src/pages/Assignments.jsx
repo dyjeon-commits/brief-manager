@@ -19,7 +19,7 @@ export default function Assignments() {
   const { designers, topics, assignments, labels, designerLabels, topicLabels, templateAssignments, loading, refresh } = useData()
 
   const [modal, setModal] = useState(false)
-  const [form, setForm] = useState({ designerId: '', topicIds: [] })
+  const [form, setForm] = useState({ designerId: '', topicIds: [], visibleAt: '' })
   const [allowDuplicate, setAllowDuplicate] = useState(false)
   const [filterDesigner, setFilterDesigner] = useState(() => {
     const v = localStorage.getItem('assignmentFilter')
@@ -36,6 +36,7 @@ export default function Assignments() {
   const [tierSaving, setTierSaving] = useState(false)
   // 자동배분 wizard
   const [autoStep, setAutoStep] = useState(0) // 0=off, 1, 2, 3
+  const [wizardVisibleAt, setWizardVisibleAt] = useState('')
   const [stepGrade, setStepGrade] = useState([])   // [{topic, selectedDesignerIds}]
   const [stepRandom, setStepRandom] = useState([]) // [{topic, selectedDesignerIds}]
   const [minCounts, setMinCounts] = useState({})   // {topicId: number}
@@ -131,10 +132,10 @@ export default function Assignments() {
     setSaving(true)
     for (const topicId of form.topicIds) {
       if (allowDuplicate || !assignedTopicIds.includes(String(topicId))) {
-        await addAssignment({ designerId: Number(form.designerId), topicId: Number(topicId) })
+        await addAssignment({ designerId: Number(form.designerId), topicId: Number(topicId), visibleAt: form.visibleAt || null })
       }
     }
-    setSaving(false); setModal(false); setForm({ designerId: '', topicIds: [] }); setAllowDuplicate(false); refresh()
+    setSaving(false); setModal(false); setForm({ designerId: '', topicIds: [], visibleAt: '' }); setAllowDuplicate(false); refresh()
   }
 
   const getDesignerGrade = (did) => {
@@ -275,9 +276,9 @@ export default function Assignments() {
 
     setSaving(true)
     for (const { designerId, topicId } of all) {
-      await addAssignment({ designerId, topicId })
+      await addAssignment({ designerId, topicId, visibleAt: wizardVisibleAt || null })
     }
-    setSaving(false); setAutoStep(0); refresh()
+    setSaving(false); setAutoStep(0); setWizardVisibleAt(''); refresh()
   }
 
   // 3단계: all rows merged
@@ -689,6 +690,12 @@ export default function Assignments() {
                 {allowDuplicate ? '✓ 추가 배정 모드' : '+ 추가 배정'}
               </button>
               <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <label style={{ fontSize: 12, color: 'var(--text2)', whiteSpace: 'nowrap' }}>공개 시점</label>
+                <input type="datetime-local" value={form.visibleAt}
+                  onChange={e => setForm(p => ({ ...p, visibleAt: e.target.value }))}
+                  style={{ fontSize: 12, padding: '4px 8px', border: '1.5px solid var(--border)', borderRadius: 6 }} />
+              </div>
               <button className="btn btn-ghost" onClick={() => { setModal(false); setAllowDuplicate(false) }}>취소</button>
               <button className="btn btn-primary" onClick={save}
                 disabled={!form.designerId || form.topicIds.length === 0 || saving}
@@ -931,6 +938,14 @@ export default function Assignments() {
                         </span>
                       ))}
                     </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '10px 14px', background: '#f8fafc', borderRadius: 8 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text2)', whiteSpace: 'nowrap' }}>공개 시점</span>
+                    <input type="datetime-local" value={wizardVisibleAt}
+                      onChange={e => setWizardVisibleAt(e.target.value)}
+                      style={{ fontSize: 12, padding: '4px 8px', border: '1.5px solid var(--border)', borderRadius: 6, flex: 1 }} />
+                    <span style={{ fontSize: 11, color: 'var(--text2)', whiteSpace: 'nowrap' }}>미설정 시 즉시 공개</span>
                   </div>
 
                   <div className="ma">

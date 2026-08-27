@@ -119,6 +119,7 @@ export async function addAssignment(data) {
     designer_id: data.designerId,
     topic_id: data.topicId,
     status: 'assigned',
+    visible_at: data.visibleAt || null,
   }).select().single()
   return result
 }
