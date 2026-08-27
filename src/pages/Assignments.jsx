@@ -898,7 +898,7 @@ export default function Assignments() {
                         const pages = t.pages || 0
                         return sum + (conceptFee + 15000 * pages) * qty
                       }, 0)
-                      const currentAmt = calcMonthlyAmount(d.id)
+                      const currentAmt = calcMonthlyAmount(d.id, wizardSettlementMonth || currentMonth)
                       const isOverLimit = monthlyLimit > 0 && (currentAmt + addAmt) > monthlyLimit
                       return (
                       <div key={d.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', background: isOverLimit ? '#fff7ed' : dTopics.length === 0 ? '#fafafa' : 'white' }}>
