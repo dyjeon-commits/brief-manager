@@ -120,6 +120,7 @@ export async function addAssignment(data) {
     topic_id: data.topicId,
     status: 'assigned',
     visible_at: data.visibleAt || null,
+    settlement_month: data.settlementMonth || null,
   }).select().single()
   return result
 }

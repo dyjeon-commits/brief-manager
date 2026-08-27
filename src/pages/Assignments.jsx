@@ -19,7 +19,13 @@ export default function Assignments() {
   const { designers, topics, assignments, labels, designerLabels, topicLabels, templateAssignments, loading, refresh } = useData()
 
   const [modal, setModal] = useState(false)
-  const [form, setForm] = useState({ designerId: '', topicIds: [], visibleAt: '' })
+  const now = new Date()
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const monthOptions = [-1, 0, 1, 2].map(offset => {
+    const d = new Date(now.getFullYear(), now.getMonth() + offset, 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })
+  const [form, setForm] = useState({ designerId: '', topicIds: [], visibleAt: '', settlementMonth: currentMonth })
   const [allowDuplicate, setAllowDuplicate] = useState(false)
   const [filterDesigner, setFilterDesigner] = useState(() => {
     const v = localStorage.getItem('assignmentFilter')
@@ -37,6 +43,7 @@ export default function Assignments() {
   // 자동배분 wizard
   const [autoStep, setAutoStep] = useState(0) // 0=off, 1, 2, 3
   const [wizardVisibleAt, setWizardVisibleAt] = useState('')
+  const [wizardSettlementMonth, setWizardSettlementMonth] = useState(currentMonth)
   const [stepGrade, setStepGrade] = useState([])   // [{topic, selectedDesignerIds}]
   const [stepRandom, setStepRandom] = useState([]) // [{topic, selectedDesignerIds}]
   const [minCounts, setMinCounts] = useState({})   // {topicId: number}
@@ -95,9 +102,14 @@ export default function Assignments() {
     }))
   }
 
-  function calcMonthlyAmount(designerId) {
+  function calcMonthlyAmount(designerId, targetMonth = currentMonth) {
     return assignments
-      .filter(a => String(a.designer_id) === String(designerId) && a.topic_id)
+      .filter(a => {
+        if (String(a.designer_id) !== String(designerId)) return false
+        if (!a.topic_id) return false
+        const sm = a.settlement_month || currentMonth
+        return sm === targetMonth
+      })
       .reduce((sum, a) => {
         const t = topicMap[String(a.topic_id)]
         if (!t) return sum
@@ -114,7 +126,8 @@ export default function Assignments() {
     const designer = designers.find(d => String(d.id) === String(form.designerId))
     const monthlyLimit = designer?.monthly_limit ? Number(designer.monthly_limit) : 0
     if (monthlyLimit > 0) {
-      const currentAmount = calcMonthlyAmount(form.designerId)
+      const targetMonth = form.settlementMonth || currentMonth
+      const currentAmount = calcMonthlyAmount(form.designerId, targetMonth)
       const addAmount = form.topicIds.reduce((sum, topicId) => {
         const t = topicMap[String(topicId)]
         const qty = t?.qty_per_person || 1
@@ -124,7 +137,7 @@ export default function Assignments() {
       }, 0)
       if (currentAmount + addAmount > monthlyLimit) {
         const ok = window.confirm(
-          `⚠️ ${designer.name}의 월 한도(₩${designer.monthly_limit.toLocaleString()})를 초과합니다.\n현재 배정 예상 정산: ₩${currentAmount.toLocaleString()}\n추가 예상 정산: ₩${addAmount.toLocaleString()}\n합계: ₩${(currentAmount + addAmount).toLocaleString()}\n\n계속 배정하시겠어요?`
+          `⚠️ ${designer.name}의 ${targetMonth} 월 한도(₩${monthlyLimit.toLocaleString()})를 초과합니다.\n현재 ${targetMonth} 배정 예상 정산: ₩${currentAmount.toLocaleString()}\n추가 예상 정산: ₩${addAmount.toLocaleString()}\n합계: ₩${(currentAmount + addAmount).toLocaleString()}\n\n계속 배정하시겠어요?`
         )
         if (!ok) return
       }
@@ -132,10 +145,10 @@ export default function Assignments() {
     setSaving(true)
     for (const topicId of form.topicIds) {
       if (allowDuplicate || !assignedTopicIds.includes(String(topicId))) {
-        await addAssignment({ designerId: Number(form.designerId), topicId: Number(topicId), visibleAt: form.visibleAt || null })
+        await addAssignment({ designerId: Number(form.designerId), topicId: Number(topicId), visibleAt: form.visibleAt || null, settlementMonth: form.settlementMonth || null })
       }
     }
-    setSaving(false); setModal(false); setForm({ designerId: '', topicIds: [], visibleAt: '' }); setAllowDuplicate(false); refresh()
+    setSaving(false); setModal(false); setForm({ designerId: '', topicIds: [], visibleAt: '', settlementMonth: currentMonth }); setAllowDuplicate(false); refresh()
   }
 
   const getDesignerGrade = (did) => {
@@ -251,7 +264,8 @@ export default function Assignments() {
       const designer = designers.find(d => String(d.id) === String(designerId))
       const monthlyLimit = designer?.monthly_limit ? Number(designer.monthly_limit) : 0
       if (monthlyLimit > 0) {
-        const currentAmount = calcMonthlyAmount(designerId)
+        const targetMonth = wizardSettlementMonth || currentMonth
+        const currentAmount = calcMonthlyAmount(designerId, targetMonth)
         const addAmount = topicIds.reduce((sum, topicId) => {
           const t = topicMap[String(topicId)]
           if (!t) return sum
@@ -260,14 +274,9 @@ export default function Assignments() {
           const pages = t.pages || 0
           return sum + (conceptFee + 15000 * pages) * qty
         }, 0)
-        console.log(`[한도체크] ${designer.name}: 한도=${monthlyLimit}, 현재=${currentAmount}, 추가=${addAmount}, 합계=${currentAmount + addAmount}`)
-        topicIds.forEach(tid => {
-          const t = topicMap[String(tid)]
-          console.log(`  주제 ${tid}: concept_fee=${t?.concept_fee}, pages=${t?.pages}, qty_per_person=${t?.qty_per_person}`)
-        })
         if (currentAmount + addAmount > monthlyLimit) {
           const ok = window.confirm(
-            `⚠️ ${designer.name}의 월 한도(₩${monthlyLimit.toLocaleString()})를 초과합니다.\n현재 배정 예상 정산: ₩${currentAmount.toLocaleString()}\n추가 예상 정산: ₩${addAmount.toLocaleString()}\n합계: ₩${(currentAmount + addAmount).toLocaleString()}\n\n계속 배정하시겠어요?`
+            `⚠️ ${designer.name}의 ${targetMonth} 월 한도(₩${monthlyLimit.toLocaleString()})를 초과합니다.\n현재 ${targetMonth} 배정 예상 정산: ₩${currentAmount.toLocaleString()}\n추가 예상 정산: ₩${addAmount.toLocaleString()}\n합계: ₩${(currentAmount + addAmount).toLocaleString()}\n\n계속 배정하시겠어요?`
           )
           if (!ok) return
         }
@@ -276,9 +285,9 @@ export default function Assignments() {
 
     setSaving(true)
     for (const { designerId, topicId } of all) {
-      await addAssignment({ designerId, topicId, visibleAt: wizardVisibleAt || null })
+      await addAssignment({ designerId, topicId, visibleAt: wizardVisibleAt || null, settlementMonth: wizardSettlementMonth || null })
     }
-    setSaving(false); setAutoStep(0); setWizardVisibleAt(''); refresh()
+    setSaving(false); setAutoStep(0); setWizardVisibleAt(''); setWizardSettlementMonth(currentMonth); refresh()
   }
 
   // 3단계: all rows merged
@@ -691,6 +700,13 @@ export default function Assignments() {
               </button>
               <div style={{ display: 'flex', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <label style={{ fontSize: 12, color: 'var(--text2)', whiteSpace: 'nowrap' }}>정산 월</label>
+                <select value={form.settlementMonth} onChange={e => setForm(p => ({ ...p, settlementMonth: e.target.value }))}
+                  style={{ fontSize: 12, padding: '4px 8px', border: '1.5px solid var(--border)', borderRadius: 6 }}>
+                  {monthOptions.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <label style={{ fontSize: 12, color: 'var(--text2)', whiteSpace: 'nowrap' }}>공개 시점</label>
                 <input type="datetime-local" value={form.visibleAt}
                   onChange={e => setForm(p => ({ ...p, visibleAt: e.target.value }))}
@@ -940,12 +956,21 @@ export default function Assignments() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '10px 14px', background: '#f8fafc', borderRadius: 8 }}>
-                    <span style={{ fontSize: 12, color: 'var(--text2)', whiteSpace: 'nowrap' }}>공개 시점</span>
-                    <input type="datetime-local" value={wizardVisibleAt}
-                      onChange={e => setWizardVisibleAt(e.target.value)}
-                      style={{ fontSize: 12, padding: '4px 8px', border: '1.5px solid var(--border)', borderRadius: 6, flex: 1 }} />
-                    <span style={{ fontSize: 11, color: 'var(--text2)', whiteSpace: 'nowrap' }}>미설정 시 즉시 공개</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, padding: '10px 14px', background: '#f8fafc', borderRadius: 8, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 12, color: 'var(--text2)', whiteSpace: 'nowrap' }}>정산 월</span>
+                      <select value={wizardSettlementMonth} onChange={e => setWizardSettlementMonth(e.target.value)}
+                        style={{ fontSize: 12, padding: '4px 8px', border: '1.5px solid var(--border)', borderRadius: 6 }}>
+                        {monthOptions.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 12, color: 'var(--text2)', whiteSpace: 'nowrap' }}>공개 시점</span>
+                      <input type="datetime-local" value={wizardVisibleAt}
+                        onChange={e => setWizardVisibleAt(e.target.value)}
+                        style={{ fontSize: 12, padding: '4px 8px', border: '1.5px solid var(--border)', borderRadius: 6 }} />
+                      <span style={{ fontSize: 11, color: 'var(--text2)', whiteSpace: 'nowrap' }}>미설정 시 즉시 공개</span>
+                    </div>
                   </div>
 
                   <div className="ma">
