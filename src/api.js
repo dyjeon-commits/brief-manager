@@ -123,7 +123,13 @@ export async function addAssignment(data) {
   return result
 }
 export async function deleteAssignment(id) {
-  await supabase.from('assignments').delete().eq('id', id)
+  const { data: a } = await supabase.from('assignments').select('status').eq('id', id).single()
+  if (a?.status === 'approved') {
+    // 심사완료 배정은 정산 보존을 위해 topic_id만 null로 처리 (배정 현황에서만 사라짐)
+    await supabase.from('assignments').update({ topic_id: null }).eq('id', id)
+  } else {
+    await supabase.from('assignments').delete().eq('id', id)
+  }
 }
 export async function updateAssignmentStatus(id, status, topicName = null) {
   const update = { status }
