@@ -89,14 +89,15 @@ export default function DesignerView({ token }) {
   const deadlineGroups = {}
   active.forEach(a => {
     const t = topicMap[String(a.topic_id)]
-    if (!t?.deadline) return
-    if (!deadlineGroups[t.deadline]) deadlineGroups[t.deadline] = { count: 0, tmpl: 0, premium: 0, standard: 0 }
+    const deadline = a.deadline || t?.deadline
+    if (!deadline) return
+    if (!deadlineGroups[deadline]) deadlineGroups[deadline] = { count: 0, tmpl: 0, premium: 0, standard: 0 }
     const idxList = templateAssignments.filter(tm => String(tm.topic_id) === String(a.topic_id))
     const qty = idxList.length > 0 ? idxList.length : (t?.qty_per_person || 1)
-    deadlineGroups[t.deadline].count++
-    deadlineGroups[t.deadline].tmpl += qty
-    if (a.tier === 'premium') deadlineGroups[t.deadline].premium += qty
-    else deadlineGroups[t.deadline].standard += qty
+    deadlineGroups[deadline].count++
+    deadlineGroups[deadline].tmpl += qty
+    if (a.tier === 'premium') deadlineGroups[deadline].premium += qty
+    else deadlineGroups[deadline].standard += qty
   })
 
   return (
@@ -240,7 +241,8 @@ function NoticeAccordion({ n }) {
 }
 
 function AssignmentCard({ a, t, tmplIdxList = [], extraQty = 0 }) {
-  const isOverdue = t?.deadline && a.status !== 'completed' && a.status !== 'approved' && new Date(t.deadline) < new Date()
+  const deadline = a.deadline || t?.deadline
+  const isOverdue = deadline && a.status !== 'completed' && a.status !== 'approved' && new Date(deadline) < new Date()
   const status = a.status || 'not_submitted'
   const isPremium = a.tier === 'premium'
   return (
@@ -253,9 +255,9 @@ function AssignmentCard({ a, t, tmplIdxList = [], extraQty = 0 }) {
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, fontSize: 13, color: '#64748b' }}>
             {t?.type && <span style={{ background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 500 }}>{t.type}</span>}
-            {t?.deadline && (
+            {deadline && (
               <span style={{ color: isOverdue ? '#dc2626' : '#64748b', fontWeight: isOverdue ? 700 : 400 }}>
-                📅 마감일 {t.deadline}
+                📅 마감일 {deadline}
               </span>
             )}
             {t?.pages && <span>📄 페이지 수 {t.pages}p</span>}
