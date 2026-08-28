@@ -23,7 +23,7 @@ export async function getAll(pmId = null, isSuperadmin = false) {
 
   const dIds = new Set((designers || []).map(d => d.id))
   const tIds = new Set((topics || []).map(t => t.id))
-  const filteredAssignments = (assignments || []).filter(a => dIds.has(a.designer_id) || tIds.has(a.topic_id))
+  const filteredAssignments = (assignments || []).filter(a => a.topic_id && dIds.has(a.designer_id) && tIds.has(a.topic_id))
 
   return {
     designers: designers || [],
