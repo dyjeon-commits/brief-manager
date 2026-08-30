@@ -1,44 +1,36 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
-
-export const supabase = createClient(
-  'https://kstvoyhhrqvpbeadyzbx.supabase.co',
-  'sb_publishable_7ppkQFYB3qYlXnrSVo-zyg_JEOi6iW-'
-)
+import { call } from './backend'
 
 const AuthContext = createContext(null)
+const STORAGE_KEY = 'brief-manager-profile'
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      if (session?.user) loadProfile(session.user.id)
-      else { setProfile(null); setLoading(false) }
-    })
-    return () => subscription.unsubscribe()
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      try { setProfile(JSON.parse(saved)) } catch { /* ignore */ }
+    }
+    setLoading(false)
   }, [])
 
-  async function loadProfile(uid) {
-    const { data } = await supabase.from('profiles').select('*').eq('id', uid).single()
-    setProfile(data)
-    setLoading(false)
+  async function signIn(name) {
+    const found = await call('login', { name })
+    if (!found) return '등록되지 않은 이름입니다. 팀 관리자에게 문의해주세요.'
+    setProfile(found)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(found))
+    return null
   }
 
-  async function signIn(email, password) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return error
-  }
-
-  async function signOut() {
-    await supabase.auth.signOut()
+  function signOut() {
+    setProfile(null)
+    localStorage.removeItem(STORAGE_KEY)
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut, supabase }}>
+    <AuthContext.Provider value={{ user: profile, profile, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   )

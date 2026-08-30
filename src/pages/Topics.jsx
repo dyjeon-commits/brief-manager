@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { addTopic, updateTopic, deleteTopic, setTopicLabels, getTemplateAssignments, setTemplateAssignments } from '../api'
-import { supabase } from '../AuthContext'
 import { useAuth } from '../AuthContext'
 import { useData } from '../DataContext'
 
@@ -14,7 +13,7 @@ const EMPTY = { name: '', briefUrl: '', type: '', type2: '', deadline: '', pages
 export default function Topics() {
   const { profile } = useAuth()
   const isSuperadmin = profile?.role === 'superadmin'
-  const { topics, assignments, labels, topicLabels: topicLabelsData, designers, designerLabels, loading, refresh } = useData()
+  const { topics, assignments, labels, topicLabels: topicLabelsData, designers, designerLabels, templateAssignments, loading, refresh } = useData()
   const topicLabels = topicLabelsData
 
   const [modal, setModal] = useState(false)
@@ -30,19 +29,14 @@ export default function Topics() {
   const [tmplResult, setTmplResult] = useState([]) // [{templateIdx, designerId}]
   const [tmplAllIdxs, setTmplAllIdxs] = useState([]) // 원본 전체 idx 목록
   const [tmplSaving, setTmplSaving] = useState(false)
-  const [tmplCountsPerTopic, setTmplCountsPerTopic] = useState({}) // topicId → count
 
-  useEffect(() => {
-    if (topics.length > 0) {
-      supabase.from('template_assignments').select('topic_id')
-        .in('topic_id', topics.map(t => t.id))
-        .then(({ data: tmplRows }) => {
-          const counts = {}
-          ;(tmplRows || []).forEach(r => { counts[r.topic_id] = (counts[r.topic_id] || 0) + 1 })
-          setTmplCountsPerTopic(counts)
-        })
-    }
-  }, [topics])
+  const tmplCountsPerTopic = React.useMemo(() => {
+    const counts = {}
+    ;(templateAssignments || []).forEach(r => {
+      counts[r.topic_id] = (counts[r.topic_id] || 0) + 1
+    })
+    return counts
+  }, [templateAssignments])
 
   function openAdd() { setForm(EMPTY); setSelectedLabels([]); setEditId(null); setModal(true) }
   function openEdit(t) {

@@ -1,201 +1,209 @@
-import { supabase } from './AuthContext'
+import { call } from './backend'
 
 export async function getAll(pmId = null, isSuperadmin = false) {
-  let designersQ = supabase.from('designers').select('*').order('created_at')
-  let topicsQ = supabase.from('topics').select('*').order('created_at')
+  const data = await call('getAll')
+  const filterByPm = (rows) => (pmId && !isSuperadmin) ? rows.filter(r => String(r.pm_id) === String(pmId)) : rows
 
-  if (pmId) {
-    designersQ = designersQ.eq('pm_id', pmId)
-    topicsQ = topicsQ.eq('pm_id', pmId)
-  }
+  const designers = filterByPm(data.designers || [])
+  const topics = filterByPm(data.topics || [])
+  const labels = filterByPm(data.labels || [])
 
-  let labelsQ = supabase.from('labels').select('*').order('name')
-  if (pmId) labelsQ = labelsQ.eq('pm_id', pmId)
-
-  const [{ data: designers }, { data: topics }, { data: assignments }, { data: labels }, { data: designerLabels }, { data: topicLabels }] = await Promise.all([
-    designersQ,
-    topicsQ,
-    supabase.from('assignments').select('*').order('created_at'),
-    labelsQ,
-    supabase.from('designer_labels').select('*'),
-    supabase.from('topic_labels').select('*'),
-  ])
-
-  const dIds = new Set((designers || []).map(d => d.id))
-  const tIds = new Set((topics || []).map(t => t.id))
-  const filteredAssignments = (assignments || []).filter(a => a.topic_id && dIds.has(a.designer_id) && tIds.has(a.topic_id))
+  const dIds = new Set(designers.map(d => d.id))
+  const tIds = new Set(topics.map(t => t.id))
+  const filteredAssignments = (data.assignments || []).filter(a => a.topic_id && dIds.has(a.designer_id) && tIds.has(a.topic_id))
 
   return {
-    designers: designers || [],
-    topics: topics || [],
+    designers,
+    topics,
     assignments: filteredAssignments,
-    labels: labels || [],
-    designerLabels: designerLabels || [],
-    topicLabels: topicLabels || [],
+    labels,
+    designerLabels: data.designerLabels || [],
+    topicLabels: data.topicLabels || [],
+    templateAssignments: data.templateAssignments || [],
   }
 }
 
 export async function addDesigner(data, pmId) {
-  const { data: result } = await supabase.from('designers').insert({
-    name: data.name, nickname: data.nickname, contact: data.contact,
-    specialty: data.specialty, note: data.note,
-    monthly_limit: data.monthlyLimit ? parseInt(data.monthlyLimit) : null,
-    pm_id: pmId
-  }).select().single()
-  return result
+  return call('insert', {
+    sheet: 'designers',
+    row: { name: data.name, nickname: data.nickname, specialty: data.specialty, note: data.note, pm_id: pmId },
+  })
 }
 export async function updateDesigner(data) {
   const { id, ...rest } = data
-  await supabase.from('designers').update({
-    name: rest.name, nickname: rest.nickname, contact: rest.contact,
-    specialty: rest.specialty, note: rest.note,
-    monthly_limit: rest.monthlyLimit ? parseInt(rest.monthlyLimit) : null,
-  }).eq('id', id)
+  await call('update', {
+    sheet: 'designers',
+    id,
+    patch: { name: rest.name, nickname: rest.nickname, specialty: rest.specialty, note: rest.note },
+  })
+}
+export async function deleteDesigner(id) {
+  await call('delete', { sheet: 'designers', id })
 }
 
 // Template assignments
 export async function getTemplateAssignments(topicId) {
-  const { data } = await supabase.from('template_assignments').select('*').eq('topic_id', topicId).order('template_idx')
-  return data || []
+  const all = await call('getTemplateAssignments', { topicId })
+  return all.sort((a, b) => Number(a.template_idx) - Number(b.template_idx))
 }
 export async function setTemplateAssignments(topicId, assignments) {
-  await supabase.from('template_assignments').delete().eq('topic_id', topicId)
-  if (assignments.length > 0) {
-    await supabase.from('template_assignments').insert(assignments.map(a => ({ topic_id: topicId, template_idx: a.templateIdx, designer_id: a.designerId })))
-  }
-}
-export async function deleteDesigner(id) {
-  await supabase.from('designers').delete().eq('id', id)
+  await call('setJoin', {
+    sheet: 'template_assignments',
+    keyField: 'topic_id',
+    keyValue: topicId,
+    rows: assignments.map(a => ({ topic_id: topicId, template_idx: a.templateIdx, designer_id: a.designerId })),
+  })
 }
 
 export async function addTopic(data, pmId) {
-  const { data: result } = await supabase.from('topics').insert({
-    name: data.name,
-    brief_url: data.briefUrl,
-    type: data.type,
-    type2: data.type2,
-    deadline: data.deadline || null,
-    pages: data.pages ? parseInt(data.pages) : null,
-    notice: data.notice || null,
-    qty_per_person: data.qtyPerPerson ? parseInt(data.qtyPerPerson) : 1,
-    concept_fee: data.conceptFee ? parseInt(data.conceptFee) : 200000,
-    pm_id: pmId,
-  }).select().single()
-  return result
+  return call('insert', {
+    sheet: 'topics',
+    row: {
+      name: data.name,
+      brief_url: data.briefUrl,
+      type: data.type,
+      type2: data.type2,
+      deadline: data.deadline || null,
+      pages: data.pages ? parseInt(data.pages) : null,
+      notice: data.notice || null,
+      qty_per_person: data.qtyPerPerson ? parseInt(data.qtyPerPerson) : 1,
+      concept_fee: data.conceptFee ? parseInt(data.conceptFee) : 200000,
+      pm_id: pmId,
+    },
+  })
 }
 export async function updateTopic(data) {
   const { id, ...rest } = data
-  await supabase.from('topics').update({
-    name: rest.name,
-    brief_url: rest.briefUrl,
-    type: rest.type,
-    type2: rest.type2,
-    deadline: rest.deadline || null,
-    pages: rest.pages ? parseInt(rest.pages) : null,
-    notice: rest.notice || null,
-    qty_per_person: rest.qtyPerPerson ? parseInt(rest.qtyPerPerson) : 1,
-    concept_fee: rest.conceptFee ? parseInt(rest.conceptFee) : 200000,
-  }).eq('id', id)
+  await call('update', {
+    sheet: 'topics',
+    id,
+    patch: {
+      name: rest.name,
+      brief_url: rest.briefUrl,
+      type: rest.type,
+      type2: rest.type2,
+      deadline: rest.deadline || null,
+      pages: rest.pages ? parseInt(rest.pages) : null,
+      notice: rest.notice || null,
+      qty_per_person: rest.qtyPerPerson ? parseInt(rest.qtyPerPerson) : 1,
+      concept_fee: rest.conceptFee ? parseInt(rest.conceptFee) : 200000,
+    },
+  })
 }
 export async function deleteTopic(id) {
-  await supabase.from('template_assignments').delete().eq('topic_id', id)
-  // 심사완료(approved)된 배정은 정산 내역 보존을 위해 삭제하지 않음
-  // topic_id + approved_at IS NULL 두 조건을 neq 대신 명시적 필터로 처리
-  const { data: toDelete } = await supabase
-    .from('assignments')
-    .select('id')
-    .eq('topic_id', id)
-    .is('approved_at', null)
-  if (toDelete && toDelete.length > 0) {
-    const ids = toDelete.map(r => r.id)
-    await supabase.from('assignments').delete().in('id', ids)
-  }
-  await supabase.from('topic_labels').delete().eq('topic_id', id)
-  await supabase.from('topics').delete().eq('id', id)
+  await call('setJoin', { sheet: 'template_assignments', keyField: 'topic_id', keyValue: id, rows: [] })
+  await call('setJoin', { sheet: 'topic_labels', keyField: 'topic_id', keyValue: id, rows: [] })
+  // 심사완료(approved)된 배정은 작업 이력 보존을 위해 삭제하지 않음 — topic_id만 끊어서 조회에서만 제외
+  const all = await call('getAll')
+  const toClear = (all.assignments || []).filter(a => String(a.topic_id) === String(id) && a.approved_at)
+  const toDelete = (all.assignments || []).filter(a => String(a.topic_id) === String(id) && !a.approved_at)
+  await Promise.all([
+    ...toClear.map(a => call('update', { sheet: 'assignments', id: a.id, patch: { topic_id: '' } })),
+    ...toDelete.map(a => call('delete', { sheet: 'assignments', id: a.id })),
+  ])
+  await call('delete', { sheet: 'topics', id })
 }
 
 export async function addAssignment(data) {
-  const { data: result } = await supabase.from('assignments').insert({
-    designer_id: data.designerId,
-    topic_id: data.topicId,
-    status: 'assigned',
-    visible_at: data.visibleAt ? new Date(data.visibleAt + 'T00:00:00').toISOString() : null,
-    settlement_month: data.settlementMonth || null,
-  }).select().single()
-  return result
+  return call('insert', {
+    sheet: 'assignments',
+    row: {
+      designer_id: data.designerId,
+      topic_id: data.topicId,
+      status: 'assigned',
+      visible_at: data.visibleAt ? new Date(data.visibleAt + 'T00:00:00').toISOString() : null,
+    },
+  })
 }
 export async function deleteAssignment(id) {
-  const { data: a } = await supabase.from('assignments').select('status').eq('id', id).single()
+  const all = await call('getAll')
+  const a = (all.assignments || []).find(x => String(x.id) === String(id))
   if (a?.status === 'approved') {
-    // 심사완료 배정은 정산 보존을 위해 topic_id만 null로 처리 (배정 현황에서만 사라짐)
-    await supabase.from('assignments').update({ topic_id: null }).eq('id', id)
+    // 심사완료 배정은 이력 보존을 위해 topic_id만 null로 처리 (배정 현황에서만 사라짐)
+    await call('update', { sheet: 'assignments', id, patch: { topic_id: '' } })
   } else {
-    await supabase.from('assignments').delete().eq('id', id)
+    await call('delete', { sheet: 'assignments', id })
   }
 }
 export async function updateAssignmentStatus(id, status, topicName = null) {
-  const update = { status }
+  const patch = { status }
   if (status === 'approved') {
-    update.approved_at = new Date().toISOString()
-    if (topicName) update.topic_name = topicName
+    patch.approved_at = new Date().toISOString()
+    if (topicName) patch.topic_name = topicName
   } else {
-    update.approved_at = null
+    patch.approved_at = ''
   }
-  await supabase.from('assignments').update(update).eq('id', id)
+  await call('update', { sheet: 'assignments', id, patch })
 }
 export async function updateAssignmentDeadline(id, deadline) {
-  await supabase.from('assignments').update({ deadline: deadline || null }).eq('id', id)
+  await call('update', { sheet: 'assignments', id, patch: { deadline: deadline || '' } })
 }
 export async function setAssignmentTiers(tierUpdates) {
   await Promise.all(tierUpdates.map(({ id, tier }) =>
-    supabase.from('assignments').update({ tier }).eq('id', id)
+    call('update', { sheet: 'assignments', id, patch: { tier } })
   ))
 }
 
 // Labels
 export async function getLabels() {
-  const { data } = await supabase.from('labels').select('*').order('name')
-  return data || []
+  return call('getAll').then(d => d.labels || [])
 }
 export async function addLabel(name, color, pmId, parentId = null) {
-  const { data } = await supabase.from('labels').insert({ name, color, pm_id: pmId, parent_id: parentId }).select().single()
-  return data
+  return call('insert', { sheet: 'labels', row: { name, color, pm_id: pmId, parent_id: parentId || '' } })
 }
 export async function updateLabel(id, name, color) {
-  await supabase.from('labels').update({ name, color }).eq('id', id)
+  await call('update', { sheet: 'labels', id, patch: { name, color } })
 }
 export async function deleteLabel(id) {
-  await supabase.from('labels').delete().eq('id', id)
+  await call('delete', { sheet: 'labels', id })
 }
 
 // Designer labels
 export async function setDesignerLabels(designerId, labelIds) {
-  await supabase.from('designer_labels').delete().eq('designer_id', designerId)
-  if (labelIds.length > 0) {
-    await supabase.from('designer_labels').insert(labelIds.map(lid => ({ designer_id: designerId, label_id: lid })))
-  }
+  await call('setJoin', {
+    sheet: 'designer_labels',
+    keyField: 'designer_id',
+    keyValue: designerId,
+    rows: labelIds.map(lid => ({ designer_id: designerId, label_id: lid })),
+  })
 }
 
 // Notices
 export async function getNotices(pmId) {
-  const { data } = await supabase.from('notices').select('*').eq('pm_id', pmId).order('created_at', { ascending: false })
-  return data || []
+  return call('getNotices', { pmId })
 }
 export async function addNotice(title, content, pmId) {
-  const { data } = await supabase.from('notices').insert({ title, content, pm_id: pmId }).select().single()
-  return data
+  return call('insert', { sheet: 'notices', row: { title, content, pm_id: pmId } })
 }
 export async function updateNotice(id, title, content) {
-  await supabase.from('notices').update({ title, content }).eq('id', id)
+  await call('update', { sheet: 'notices', id, patch: { title, content } })
 }
 export async function deleteNotice(id) {
-  await supabase.from('notices').delete().eq('id', id)
+  await call('delete', { sheet: 'notices', id })
 }
 
 // Topic labels
 export async function setTopicLabels(topicId, labelIds) {
-  await supabase.from('topic_labels').delete().eq('topic_id', topicId)
-  if (labelIds.length > 0) {
-    await supabase.from('topic_labels').insert(labelIds.map(lid => ({ topic_id: topicId, label_id: lid })))
-  }
+  await call('setJoin', {
+    sheet: 'topic_labels',
+    keyField: 'topic_id',
+    keyValue: topicId,
+    rows: labelIds.map(lid => ({ topic_id: topicId, label_id: lid })),
+  })
+}
+
+// Team (로그인용 계정 목록)
+export async function getTeam() {
+  return call('getAll').then(d => d.team || [])
+}
+export async function addTeamMember(name, role) {
+  return call('insert', { sheet: 'team', row: { name, role } })
+}
+export async function deleteTeamMember(id) {
+  await call('delete', { sheet: 'team', id })
+}
+
+// 디자이너 전용 뷰 (로그인 없이 토큰으로 조회)
+export async function getDesignerView(token) {
+  return call('getDesignerView', { token })
 }

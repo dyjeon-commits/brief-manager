@@ -3,7 +3,7 @@ import { addDesigner, updateDesigner, deleteDesigner, setDesignerLabels, updateA
 import { useAuth } from '../AuthContext'
 import { useData } from '../DataContext'
 
-const EMPTY = { name: '', nickname: '', contact: '', specialty: '', note: '', monthlyLimit: '' }
+const EMPTY = { name: '', nickname: '', specialty: '', note: '' }
 
 export default function Designers({ onNavigate }) {
   const { profile } = useAuth()
@@ -20,7 +20,7 @@ export default function Designers({ onNavigate }) {
 
   function openAdd() { setForm(EMPTY); setSelectedLabels([]); setEditId(null); setModal(true) }
   function openEdit(d) {
-    setForm({ name: d.name, nickname: d.nickname || '', contact: d.contact || '', specialty: d.specialty || '', note: d.note || '', monthlyLimit: d.monthly_limit ? String(d.monthly_limit) : '' })
+    setForm({ name: d.name, nickname: d.nickname || '', specialty: d.specialty || '', note: d.note || '' })
     const myLabels = designerLabels.filter(dl => dl.designer_id === d.id).map(dl => dl.label_id)
     setSelectedLabels(myLabels)
     setEditId(d.id); setModal(true)
@@ -138,7 +138,6 @@ export default function Designers({ onNavigate }) {
                   </>}
                 </div>
                 {d.specialty && <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 500, marginBottom: 4 }}>{d.specialty}</div>}
-                {d.contact && <div style={{ fontSize: 13, color: 'var(--text2)' }}>📞 {d.contact}</div>}
                 {d.token && (
                   <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/view/${d.token}`); alert('링크가 복사되었습니다!') }}
                     style={{ marginTop: 8, background: '#f1f5f9', border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer', color: '#475569', width: '100%', textAlign: 'left' }}>
@@ -154,7 +153,6 @@ export default function Designers({ onNavigate }) {
                     ))}
                   </div>
                 )}
-                {d.monthly_limit && <div style={{ fontSize: 12, color: '#0891b2', marginTop: 8, fontWeight: 600 }}>💰 월 한도 ₩{d.monthly_limit.toLocaleString()}</div>}
                 {d.note && <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>{d.note}</div>}
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text2)' }}>
                   <span style={{ cursor: 'pointer' }} onClick={() => setDetailId(d.id)}>전체 {total}건</span>
@@ -236,10 +234,6 @@ export default function Designers({ onNavigate }) {
                 <input value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} />
               </div>
             ))}
-            <div className="fg">
-              <label>월 한도 금액</label>
-              <input type="number" value={form.monthlyLimit} onChange={e => setForm(p => ({ ...p, monthlyLimit: e.target.value }))} placeholder="예: 2000000 (미설정 시 한도 없음)" />
-            </div>
             {labels.filter(l => !l.parent_id).length > 0 && (
               <div className="fg">
                 <label>라벨</label>

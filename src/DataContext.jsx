@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { getAll } from './api'
-import { supabase, useAuth } from './AuthContext'
+import { useAuth } from './AuthContext'
 
 const DataContext = createContext(null)
 
@@ -26,15 +26,7 @@ export function DataProvider({ children }) {
     setLabels(data.labels || [])
     setDesignerLabels(data.designerLabels || [])
     setTopicLabels(data.topicLabels || [])
-
-    if (data.designers?.length > 0) {
-      const { data: tmpl } = await supabase
-        .from('template_assignments').select('*')
-        .in('designer_id', data.designers.map(d => d.id))
-      setTemplateAssignments(tmpl || [])
-    } else {
-      setTemplateAssignments([])
-    }
+    setTemplateAssignments(data.templateAssignments || [])
     setLoading(false)
   }, [profile?.id, isSuperadmin])
 

@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  'https://kstvoyhhrqvpbeadyzbx.supabase.co',
-  'sb_publishable_7ppkQFYB3qYlXnrSVo-zyg_JEOi6iW-'
-)
+import { getDesignerView } from '../api'
 
 const STATUS_LABEL = {
   assigned: '제출 안함', not_submitted: '제출 안함',
@@ -30,32 +25,13 @@ export default function DesignerView({ token }) {
 
   async function load() {
     setLoading(true)
-    const { data: d } = await supabase.from('designers').select('*').eq('token', token).single()
-    if (!d) { setNotFound(true); setLoading(false); return }
-    setDesigner(d)
-
-    const pmId = d.pm_id
-    const [{ data: a }, { data: n }] = await Promise.all([
-      supabase.from('assignments').select('*').eq('designer_id', d.id).or('visible_at.is.null,visible_at.lte.' + new Date().toISOString()),
-      pmId
-        ? supabase.from('notices').select('*').eq('pm_id', pmId).order('created_at', { ascending: false })
-        : supabase.from('notices').select('*').order('created_at', { ascending: false }),
-    ])
-
-    const topicIds = (a || []).map(x => x.topic_id).filter(Boolean)
-    let topicData = [], tmplData = []
-    if (topicIds.length > 0) {
-      const [{ data: t }, { data: tm }] = await Promise.all([
-        supabase.from('topics').select('*').in('id', topicIds),
-        supabase.from('template_assignments').select('*').eq('designer_id', d.id),
-      ])
-      topicData = t || []
-      tmplData = tm || []
-    }
-    setAssignments(a || [])
-    setTopics(topicData)
-    setNotices(n || [])
-    setTemplateAssignments(tmplData)
+    const result = await getDesignerView(token)
+    if (!result) { setNotFound(true); setLoading(false); return }
+    setDesigner(result.designer)
+    setAssignments(result.assignments || [])
+    setTopics(result.topics || [])
+    setNotices(result.notices || [])
+    setTemplateAssignments(result.templateAssignments || [])
     setLoading(false)
   }
 
