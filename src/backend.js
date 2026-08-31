@@ -1,5 +1,5 @@
 const BASE_URL = 'https://script.google.com/macros/s/AKfycbyxnkXAlr6CUVLibAjn1vj5-Xb76apRadNjrcVrDeXYqnDtvmTkQbzSPlCEkLfwfpdAxw/exec'
-const SECRET = 'brief-manager-9f3a7c2e1d8b4a6f'
+const SECRET = 'brief-manager-bc80507e30c938bf4af2f6799ae09540'
 
 export async function call(action, payload = {}) {
   const url = new URL(BASE_URL)
