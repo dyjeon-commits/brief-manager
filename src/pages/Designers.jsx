@@ -5,6 +5,10 @@ import { useData } from '../DataContext'
 
 const EMPTY = { name: '', nickname: '', specialty: '', note: '' }
 
+// 외주 디자이너 전용 뷰는 VPN 없이 열려야 해서 항상 Vercel 주소로 고정한다
+// (PM 대시보드는 VPN 전용 Cloudflare 도메인에 있어 window.location.origin을 쓰면 외주가 못 엶)
+const DESIGNER_VIEW_ORIGIN = 'https://brief-manager-drab.vercel.app'
+
 export default function Designers({ onNavigate }) {
   const { profile } = useAuth()
   const { designers, assignments, topics, labels, designerLabels, loading, refresh } = useData()
@@ -139,7 +143,7 @@ export default function Designers({ onNavigate }) {
                 </div>
                 {d.specialty && <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 500, marginBottom: 4 }}>{d.specialty}</div>}
                 {d.token && (
-                  <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/view/${d.token}`); alert('링크가 복사되었습니다!') }}
+                  <button onClick={() => { navigator.clipboard.writeText(`${DESIGNER_VIEW_ORIGIN}/view/${d.token}`); alert('링크가 복사되었습니다!') }}
                     style={{ marginTop: 8, background: '#f1f5f9', border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer', color: '#475569', width: '100%', textAlign: 'left' }}>
                     🔗 전용 링크 복사
                   </button>
