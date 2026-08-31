@@ -26,7 +26,7 @@ export async function getAll(pmId = null) {
 export async function addDesigner(data, pmId) {
   return call('insert', {
     sheet: 'designers',
-    row: { name: data.name, nickname: data.nickname, specialty: data.specialty, note: data.note, pm_id: pmId },
+    row: { name: data.name, nickname: data.nickname, specialty: data.specialty, note: data.note, pm_id: pmId, token: crypto.randomUUID() },
   })
 }
 export async function updateDesigner(data) {
