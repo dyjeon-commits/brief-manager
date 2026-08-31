@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { getDesignerView } from '../api'
+import { dateOnly } from '../dateUtils'
 
 const STATUS_LABEL = {
   assigned: '제출 안함', not_submitted: '제출 안함',
@@ -65,7 +66,7 @@ export default function DesignerView({ token }) {
   const deadlineGroups = {}
   active.forEach(a => {
     const t = topicMap[String(a.topic_id)]
-    const deadline = a.deadline || t?.deadline
+    const deadline = dateOnly(a.deadline || t?.deadline)
     if (!deadline) return
     if (!deadlineGroups[deadline]) deadlineGroups[deadline] = { count: 0, tmpl: 0, premium: 0, standard: 0 }
     const idxList = templateAssignments.filter(tm => String(tm.topic_id) === String(a.topic_id))
@@ -233,7 +234,7 @@ function AssignmentCard({ a, t, tmplIdxList = [], extraQty = 0 }) {
             {t?.type && <span style={{ background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 500 }}>{t.type}</span>}
             {deadline && (
               <span style={{ color: isOverdue ? '#dc2626' : '#64748b', fontWeight: isOverdue ? 700 : 400 }}>
-                📅 마감일 {deadline}
+                📅 마감일 {dateOnly(deadline)}
               </span>
             )}
             {t?.pages && <span>📄 페이지 수 {t.pages}p</span>}

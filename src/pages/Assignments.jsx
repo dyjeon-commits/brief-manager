@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { addAssignment, deleteAssignment, updateAssignmentStatus, updateAssignmentDeadline, setAssignmentTiers } from '../api'
 import { useData } from '../DataContext'
+import { dateOnly } from '../dateUtils'
 
 const STATUS_COLUMNS = [
   { value: 'not_submitted', label: '제출 안함', color: '#94a3b8', bg: '#f1f5f9' },
@@ -351,7 +352,7 @@ export default function Assignments() {
                         {/* 메타 */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
                           {tierMap[a.id] === 'premium' && <span style={{ fontSize: 10, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', padding: '1px 6px', borderRadius: 10, fontWeight: 700 }}>⭐ 프리미엄</span>}
-                          {(a.deadline || t?.deadline) && <span style={{ fontSize: 11, color: overdue ? '#dc2626' : 'var(--text2)' }}>📅 {a.deadline || t.deadline}</span>}
+                          {(a.deadline || t?.deadline) && <span style={{ fontSize: 11, color: overdue ? '#dc2626' : 'var(--text2)' }}>📅 {dateOnly(a.deadline || t.deadline)}</span>}
                           {t?.pages && <span style={{ fontSize: 11, color: 'var(--text2)' }}>· {t.pages}p</span>}
                         </div>
                         {t?.brief_url && (
@@ -426,7 +427,7 @@ export default function Assignments() {
                         <td style={tdStyle}>{t?.brief_url ? <a href={t.brief_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>열기 →</a> : '-'}</td>
                         <td style={{ ...tdStyle, color: overdue ? 'var(--danger)' : undefined }}>
                           <input type="date"
-                            value={a.deadline || t?.deadline || ''}
+                            value={dateOnly(a.deadline || t?.deadline) || ''}
                             onChange={async e => { await updateAssignmentDeadline(a.id, e.target.value); refresh() }}
                             style={{ border: 'none', background: 'transparent', fontSize: 13, color: overdue ? 'var(--danger)' : 'inherit', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }} />
                           {overdue && <span style={{ marginLeft: 6, fontSize: 11, background: '#fee2e2', color: 'var(--danger)', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>초과</span>}
@@ -584,7 +585,7 @@ export default function Assignments() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
                         <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>
-                          {[t.deadline && `마감 ${t.deadline}`, t.pages && `${t.pages}p`].filter(Boolean).join(' · ')}
+                          {[t.deadline && `마감 ${dateOnly(t.deadline)}`, t.pages && `${t.pages}p`].filter(Boolean).join(' · ')}
                           {alreadyAssigned && <span style={{ color: 'var(--accent)', marginLeft: 4 }}>· 이미 배정됨</span>}
                         </div>
                       </div>
@@ -719,7 +720,7 @@ export default function Assignments() {
                           </div>
                           <div style={{ fontSize: 11, color: 'var(--text2)' }}>
                             {isGrade ? `등급매칭 ${gradeCount}명 포함` : '랜덤 배분'}
-                            {row.topic.deadline && ` · 마감 ${row.topic.deadline}`}
+                            {row.topic.deadline && ` · 마감 ${dateOnly(row.topic.deadline)}`}
                           </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>

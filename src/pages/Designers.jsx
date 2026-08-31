@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { addDesigner, updateDesigner, deleteDesigner, setDesignerLabels, updateAssignmentStatus, deleteAssignment } from '../api'
 import { useAuth } from '../AuthContext'
 import { useData } from '../DataContext'
+import { dateOnly } from '../dateUtils'
 
 const EMPTY = { name: '', nickname: '', specialty: '', note: '' }
 
@@ -202,7 +203,7 @@ export default function Designers({ onNavigate }) {
                           </span>
                         </div>
                         <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--text2)', marginBottom: 8 }}>
-                          {t?.deadline && <span>📅 {t.deadline}</span>}
+                          {t?.deadline && <span>📅 {dateOnly(t.deadline)}</span>}
                           {t?.pages && <span>{t.pages}p</span>}
                           {t?.brief_url && <a href={t.brief_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>기획서 열기 →</a>}
                         </div>

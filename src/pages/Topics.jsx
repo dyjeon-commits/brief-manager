@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { addTopic, updateTopic, deleteTopic, setTopicLabels, getTemplateAssignments, setTemplateAssignments } from '../api'
 import { useAuth } from '../AuthContext'
 import { useData } from '../DataContext'
+import { dateOnly } from '../dateUtils'
 
 const TYPE_OPTIONS = [
   '프레젠테이션(1920x1080)', '프레젠테이션(1280x720)',
@@ -39,7 +40,7 @@ export default function Topics() {
 
   function openAdd() { setForm(EMPTY); setSelectedLabels([]); setEditId(null); setModal(true) }
   function openEdit(t) {
-    setForm({ name: t.name, briefUrl: t.brief_url || '', type: t.type || '', type2: t.type2 || '', deadline: t.deadline || '', pages: t.pages || '', notice: t.notice || '', qtyPerPerson: t.qty_per_person || '1', conceptFee: t.concept_fee ?? 200000 })
+    setForm({ name: t.name, briefUrl: t.brief_url || '', type: t.type || '', type2: t.type2 || '', deadline: dateOnly(t.deadline) || '', pages: t.pages || '', notice: t.notice || '', qtyPerPerson: t.qty_per_person || '1', conceptFee: t.concept_fee ?? 200000 })
     const myLabels = topicLabels.filter(tl => tl.topic_id === t.id).map(tl => tl.label_id)
     setSelectedLabels(myLabels)
     setEditId(t.id); setModal(true)
@@ -287,7 +288,7 @@ export default function Topics() {
                         ? <a href={t.brief_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', fontSize: 13, textDecoration: 'underline' }}>링크 열기 →</a>
                         : <span style={{ color: 'var(--text2)', fontSize: 13 }}>-</span>}
                     </td>
-                    <td style={{ ...tdStyle, fontSize: 13 }}>{t.deadline || '-'}</td>
+                    <td style={{ ...tdStyle, fontSize: 13 }}>{dateOnly(t.deadline) || '-'}</td>
                     <td style={{ ...tdStyle, fontSize: 13 }}>{t.pages ? `${t.pages}p` : '-'}</td>
                     <td style={tdStyle}>
                       <span style={{ background: 'var(--accent-bg)', color: 'var(--accent)', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 600 }}>{countFor(t.id)}명</span>

@@ -43,6 +43,7 @@ function NoticeAccordion({ n, onEdit, onDelete }) {
 import { getNotices, addNotice, updateNotice, deleteNotice } from '../api'
 import { useAuth } from '../AuthContext'
 import { useData } from '../DataContext'
+import { dateOnly } from '../dateUtils'
 
 export default function Dashboard({ onNavigate }) {
   const { profile } = useAuth()
@@ -241,7 +242,7 @@ export default function Dashboard({ onNavigate }) {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: 14 }}>{t.name}</div>
                   <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>
-                    {[t.deadline && `마감 ${t.deadline}`, t.pages && `${t.pages}p`].filter(Boolean).join(' · ')}
+                    {[t.deadline && `마감 ${dateOnly(t.deadline)}`, t.pages && `${t.pages}p`].filter(Boolean).join(' · ')}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', fontSize: 12 }}>
@@ -262,7 +263,7 @@ export default function Dashboard({ onNavigate }) {
             const byDeadline = {}
             assignments.forEach(a => {
               const t = topicMap[String(a.topic_id)]
-              const deadline = a.deadline || t?.deadline
+              const deadline = dateOnly(a.deadline || t?.deadline)
               if (!deadline) return
               if (!byDeadline[deadline]) byDeadline[deadline] = {}
               const topicName = t?.name || '-'
