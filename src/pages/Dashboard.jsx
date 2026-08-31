@@ -56,8 +56,6 @@ export default function Dashboard({ onNavigate }) {
   const [editNoticeId, setEditNoticeId] = useState(null)
   const [savingNotice, setSavingNotice] = useState(false)
 
-  const isSuperadmin = profile?.role === 'superadmin'
-
   useEffect(() => { if (profile?.id) loadNotices() }, [profile?.id])
 
   async function loadNotices() {

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { addAssignment, deleteAssignment, updateAssignmentStatus, updateAssignmentDeadline, setAssignmentTiers } from '../api'
-import { useAuth } from '../AuthContext'
 import { useData } from '../DataContext'
 
 const STATUS_COLUMNS = [
@@ -14,8 +13,6 @@ const STATUS_COLUMNS = [
 const STATUS_MAP = Object.fromEntries(STATUS_COLUMNS.map(s => [s.value, s]))
 
 export default function Assignments() {
-  const { profile } = useAuth()
-  const isSuperadmin = profile?.role === 'superadmin'
   const { designers, topics, assignments, labels, designerLabels, topicLabels, templateAssignments, loading, refresh } = useData()
 
   const [modal, setModal] = useState(false)

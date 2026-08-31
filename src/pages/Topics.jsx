@@ -12,7 +12,6 @@ const EMPTY = { name: '', briefUrl: '', type: '', type2: '', deadline: '', pages
 
 export default function Topics() {
   const { profile } = useAuth()
-  const isSuperadmin = profile?.role === 'superadmin'
   const { topics, assignments, labels, topicLabels: topicLabelsData, designers, designerLabels, templateAssignments, loading, refresh } = useData()
   const topicLabels = topicLabelsData
 

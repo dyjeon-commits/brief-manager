@@ -6,7 +6,6 @@ const DataContext = createContext(null)
 
 export function DataProvider({ children }) {
   const { profile } = useAuth()
-  const isSuperadmin = profile?.role === 'superadmin'
 
   const [designers, setDesigners] = useState([])
   const [topics, setTopics] = useState([])
@@ -19,7 +18,7 @@ export function DataProvider({ children }) {
 
   const refresh = useCallback(async () => {
     if (!profile?.id) return
-    const data = await getAll(profile.id, isSuperadmin)
+    const data = await getAll(profile.id)
     setDesigners(data.designers || [])
     setTopics(data.topics || [])
     setAssignments(data.assignments || [])
@@ -28,7 +27,7 @@ export function DataProvider({ children }) {
     setTopicLabels(data.topicLabels || [])
     setTemplateAssignments(data.templateAssignments || [])
     setLoading(false)
-  }, [profile?.id, isSuperadmin])
+  }, [profile?.id])
 
   useEffect(() => {
     if (profile?.id) {

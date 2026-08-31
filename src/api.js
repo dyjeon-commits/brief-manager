@@ -1,8 +1,8 @@
 import { call } from './backend'
 
-export async function getAll(pmId = null, isSuperadmin = false) {
+export async function getAll(pmId = null) {
   const data = await call('getAll')
-  const filterByPm = (rows) => (pmId && !isSuperadmin) ? rows.filter(r => String(r.pm_id) === String(pmId)) : rows
+  const filterByPm = (rows) => pmId ? rows.filter(r => String(r.pm_id) === String(pmId)) : rows
 
   const designers = filterByPm(data.designers || [])
   const topics = filterByPm(data.topics || [])
