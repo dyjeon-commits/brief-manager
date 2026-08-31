@@ -40,6 +40,8 @@ export function DataProvider({ children }) {
     <DataContext.Provider value={{
       designers, topics, assignments, labels, designerLabels, topicLabels, templateAssignments,
       loading, refresh,
+      // 낙관적 업데이트용 — 각 화면이 서버 응답을 기다리지 않고 로컬 상태를 바로 갱신할 수 있게 노출
+      setDesigners, setTopics, setAssignments, setLabels, setDesignerLabels, setTopicLabels, setTemplateAssignments,
     }}>
       {children}
     </DataContext.Provider>

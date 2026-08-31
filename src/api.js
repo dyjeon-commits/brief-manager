@@ -38,6 +38,11 @@ export async function updateDesigner(data) {
   })
 }
 export async function deleteDesigner(id) {
+  await call('setJoin', { sheet: 'designer_labels', keyField: 'designer_id', keyValue: id, rows: [] })
+  await call('setJoin', { sheet: 'template_assignments', keyField: 'designer_id', keyValue: id, rows: [] })
+  const all = await call('getAll')
+  const toDelete = (all.assignments || []).filter(a => String(a.designer_id) === String(id))
+  await Promise.all(toDelete.map(a => call('delete', { sheet: 'assignments', id: a.id })))
   await call('delete', { sheet: 'designers', id })
 }
 
@@ -155,7 +160,14 @@ export async function updateLabel(id, name, color) {
   await call('update', { sheet: 'labels', id, patch: { name, color } })
 }
 export async function deleteLabel(id) {
-  await call('delete', { sheet: 'labels', id })
+  const all = await call('getAll')
+  const children = (all.labels || []).filter(l => String(l.parent_id) === String(id))
+  const idsToDelete = [id, ...children.map(c => c.id)]
+  for (const lid of idsToDelete) {
+    await call('setJoin', { sheet: 'designer_labels', keyField: 'label_id', keyValue: lid, rows: [] })
+    await call('setJoin', { sheet: 'topic_labels', keyField: 'label_id', keyValue: lid, rows: [] })
+    await call('delete', { sheet: 'labels', id: lid })
+  }
 }
 
 // Designer labels

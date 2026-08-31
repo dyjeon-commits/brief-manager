@@ -6,8 +6,6 @@ export default function Team() {
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState({ name: '', role: 'pm' })
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
 
   useEffect(() => { load() }, [])
 
@@ -19,19 +17,29 @@ export default function Team() {
 
   async function save() {
     if (!form.name.trim()) return
-    setSaving(true); setError('')
+    const name = form.name.trim(), role = form.role
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    setMembers(prev => [...prev, { id: tempId, name, role }])
+    setModal(false); setForm({ name: '', role: 'pm' })
     try {
-      await addTeamMember(form.name.trim(), form.role)
-      setSaving(false); setModal(false); setForm({ name: '', role: 'pm' }); load()
+      const result = await addTeamMember(name, role)
+      setMembers(prev => prev.map(m => m.id === tempId ? result : m))
     } catch (err) {
-      setError('등록에 실패했습니다: ' + err.message); setSaving(false)
+      setMembers(prev => prev.filter(m => m.id !== tempId))
+      alert('등록에 실패했습니다: ' + err.message)
     }
   }
 
   async function remove(id) {
     if (!confirm('이 계정을 삭제할까요?')) return
-    await deleteTeamMember(id)
-    load()
+    const prevMembers = members
+    setMembers(prev => prev.filter(m => m.id !== id))
+    try {
+      await deleteTeamMember(id)
+    } catch (err) {
+      setMembers(prevMembers)
+      alert('삭제 실패: ' + err.message)
+    }
   }
 
   if (loading) return <div style={{ textAlign: 'center', padding: 60, color: 'var(--text2)' }}>불러오는 중...</div>
@@ -40,7 +48,7 @@ export default function Team() {
     <div>
       <div className="ph">
         <h1>팀 관리</h1>
-        <button className="btn btn-primary" onClick={() => { setModal(true); setError('') }}>+ 계정 추가</button>
+        <button className="btn btn-primary" onClick={() => setModal(true)}>+ 계정 추가</button>
       </div>
       <div style={{ background: '#eff6ff', border: '1.5px solid #bfdbfe', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#1d4ed8' }}>
         💡 이름만 등록하면 바로 로그인 가능합니다 (비밀번호 없음 — 사내망에서만 접속 가능한 앱이라 이름만으로 구분합니다).
@@ -79,10 +87,9 @@ export default function Team() {
                 <option value="superadmin">슈퍼어드민</option>
               </select>
             </div>
-            {error && <div style={{ background: '#fee2e2', color: '#dc2626', padding: '10px 12px', borderRadius: 8, fontSize: 13, marginBottom: 8 }}>{error}</div>}
             <div className="ma">
               <button className="btn btn-ghost" onClick={() => setModal(false)}>취소</button>
-              <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '추가 중...' : '추가'}</button>
+              <button className="btn btn-primary" onClick={save}>추가</button>
             </div>
           </div>
         </div>

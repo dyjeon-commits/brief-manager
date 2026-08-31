@@ -13,7 +13,10 @@ const EMPTY = { name: '', briefUrl: '', type: '', type2: '', deadline: '', pages
 
 export default function Topics() {
   const { profile } = useAuth()
-  const { topics, assignments, labels, topicLabels: topicLabelsData, designers, designerLabels, templateAssignments, loading, refresh } = useData()
+  const {
+    topics, assignments, labels, topicLabels: topicLabelsData, designers, designerLabels, templateAssignments, loading, refresh,
+    setTopics, setAssignments, setTopicLabels: setTopicLabelsState, setTemplateAssignments: setTemplateAssignmentsState,
+  } = useData()
   const topicLabels = topicLabelsData
 
   const [modal, setModal] = useState(false)
@@ -49,21 +52,71 @@ export default function Topics() {
   async function save() {
     if (!form.name.trim()) return
     setSaving(true)
-    let id = editId
-    if (editId) await updateTopic({ id: editId, ...form })
-    else {
-      const result = await addTopic(form, profile?.id)
-      id = result.id
+    const patch = {
+      name: form.name, brief_url: form.briefUrl, type: form.type, type2: form.type2,
+      deadline: form.deadline || '', pages: form.pages ? parseInt(form.pages) : null,
+      notice: form.notice || '', qty_per_person: form.qtyPerPerson ? parseInt(form.qtyPerPerson) : 1,
+      concept_fee: form.conceptFee ? parseInt(form.conceptFee) : 200000,
     }
-    await setTopicLabels(id, selectedLabels)
-    setSaving(false); setModal(false); refresh()
+
+    if (editId) {
+      const id = editId
+      setTopics(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t))
+      setTopicLabelsState(prev => [
+        ...prev.filter(tl => String(tl.topic_id) !== String(id)),
+        ...selectedLabels.map(lid => ({ topic_id: id, label_id: lid })),
+      ])
+      setSaving(false); setModal(false)
+      try {
+        await updateTopic({ id, ...form })
+        await setTopicLabels(id, selectedLabels)
+      } catch (err) {
+        alert('저장 실패: ' + err.message)
+        refresh()
+      }
+    } else {
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      setTopics(prev => [...prev, { id: tempId, ...patch, pm_id: profile?.id }])
+      setTopicLabelsState(prev => [...prev, ...selectedLabels.map(lid => ({ topic_id: tempId, label_id: lid }))])
+      setSaving(false); setModal(false)
+      try {
+        const result = await addTopic(form, profile?.id)
+        setTopics(prev => prev.map(t => t.id === tempId ? result : t))
+        setTopicLabelsState(prev => prev.map(tl => String(tl.topic_id) === tempId ? { ...tl, topic_id: result.id } : tl))
+        await setTopicLabels(result.id, selectedLabels)
+      } catch (err) {
+        setTopics(prev => prev.filter(t => t.id !== tempId))
+        setTopicLabelsState(prev => prev.filter(tl => String(tl.topic_id) !== tempId))
+        alert('추가 실패: ' + err.message)
+      }
+    }
+  }
+
+  // topics 삭제 시 로컬 상태에서도 백엔드와 동일한 규칙 적용:
+  // 심사완료(approved_at 있음) 배정은 이력 보존을 위해 topic_id만 비우고, 나머지는 제거
+  function removeTopicsLocally(ids) {
+    const idSet = new Set(ids.map(String))
+    setTopics(prev => prev.filter(t => !idSet.has(String(t.id))))
+    setAssignments(prev => prev
+      .filter(a => !idSet.has(String(a.topic_id)) || a.approved_at)
+      .map(a => idSet.has(String(a.topic_id)) && a.approved_at ? { ...a, topic_id: '' } : a))
+    setTopicLabelsState(prev => prev.filter(tl => !idSet.has(String(tl.topic_id))))
+    setTemplateAssignmentsState(prev => prev.filter(tm => !idSet.has(String(tm.topic_id))))
   }
 
   async function remove(id) {
     const count = assignments.filter(a => String(a.topic_id) === String(id)).length
     const msg = count > 0 ? `이 주제는 ${count}개의 배정이 있습니다. 삭제하면 배정도 모두 삭제됩니다. 계속할까요?` : '삭제할까요?'
     if (!confirm(msg)) return
-    await deleteTopic(id); refresh()
+    const prev = { topics, assignments, topicLabels, templateAssignments }
+    removeTopicsLocally([id])
+    try {
+      await deleteTopic(id)
+    } catch (err) {
+      setTopics(prev.topics); setAssignments(prev.assignments)
+      setTopicLabelsState(prev.topicLabels); setTemplateAssignmentsState(prev.templateAssignments)
+      alert('삭제 실패: ' + err.message)
+    }
   }
 
   async function removeChecked() {
@@ -72,8 +125,15 @@ export default function Topics() {
       ? `선택한 ${checkedIds.length}개 주제 (배정 ${totalAssignments}건 포함)를 삭제할까요?`
       : `선택한 ${checkedIds.length}개 주제를 삭제할까요?`
     if (!confirm(msg)) return
-    for (const id of checkedIds) await deleteTopic(id)
-    setCheckedIds([]); refresh()
+    const ids = checkedIds
+    removeTopicsLocally(ids)
+    setCheckedIds([])
+    try {
+      for (const id of ids) await deleteTopic(id)
+    } catch (err) {
+      alert('일부 삭제 실패: ' + err.message)
+      refresh()
+    }
   }
 
   function toggleCheck(id) {
@@ -155,10 +215,21 @@ export default function Topics() {
 
   async function saveTmplAssignments() {
     if (!tmplTopic || tmplResult.length === 0) return
-    setTmplSaving(true)
-    await setTemplateAssignments(tmplTopic.id, tmplResult)
-    setTmplSaving(false)
+    const topicId = tmplTopic.id
+    const prevTemplateAssignments = templateAssignments
+    setTemplateAssignmentsState(prev => [
+      ...prev.filter(tm => String(tm.topic_id) !== String(topicId)),
+      ...tmplResult.map(r => ({ topic_id: topicId, template_idx: r.templateIdx, designer_id: r.designerId })),
+    ])
     setTmplModal(false)
+    setTmplSaving(true)
+    try {
+      await setTemplateAssignments(topicId, tmplResult)
+    } catch (err) {
+      setTemplateAssignmentsState(prevTemplateAssignments)
+      alert('템플릿 배분 저장 실패: ' + err.message)
+    }
+    setTmplSaving(false)
   }
 
   const getTopicLabelObjs = (id) => {
@@ -173,7 +244,6 @@ export default function Topics() {
   const [csvModal, setCsvModal] = useState(false)
   const [csvPreview, setCsvPreview] = useState([])
   const [csvSelected, setCsvSelected] = useState([])
-  const [csvImporting, setCsvImporting] = useState(false)
 
   function handleCsvFile(e) {
     const file = e.target.files[0]
@@ -209,11 +279,22 @@ export default function Topics() {
   }
 
   async function importCsv() {
-    setCsvImporting(true)
-    for (const i of csvSelected) {
-      await addTopic(csvPreview[i], profile?.id)
+    const rows = csvSelected.map(i => csvPreview[i])
+    const optimisticRows = rows.map((r, idx) => ({
+      id: `temp-csv-${Date.now()}-${idx}`,
+      name: r.name, brief_url: r.briefUrl, type: r.type, type2: '',
+      deadline: '', pages: r.pages ? parseInt(r.pages) : null, notice: '',
+      qty_per_person: 1, concept_fee: 200000, pm_id: profile?.id,
+    }))
+    setTopics(prev => [...prev, ...optimisticRows])
+    setCsvModal(false); setCsvPreview([]); setCsvSelected([])
+    try {
+      for (const row of rows) await addTopic(row, profile?.id)
+      refresh()
+    } catch (err) {
+      alert('일부 항목 추가 실패: ' + err.message)
+      refresh()
     }
-    setCsvImporting(false); setCsvModal(false); setCsvPreview([]); setCsvSelected([]); refresh()
   }
 
   const thStyle = { textAlign: 'left', padding: '10px 16px', fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.04em', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }
@@ -357,9 +438,9 @@ export default function Topics() {
             <div className="ma">
               <button className="btn btn-ghost" onClick={() => setCsvModal(false)}>취소</button>
               <button className="btn btn-primary" onClick={importCsv}
-                disabled={csvImporting || csvSelected.length === 0}
+                disabled={csvSelected.length === 0}
                 style={{ opacity: csvSelected.length === 0 ? 0.5 : 1 }}>
-                {csvImporting ? '가져오는 중...' : `${csvSelected.length}개 가져오기`}
+                {csvSelected.length}개 가져오기
               </button>
             </div>
           </div>

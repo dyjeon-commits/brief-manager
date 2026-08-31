@@ -12,8 +12,10 @@ const DESIGNER_VIEW_ORIGIN = 'https://brief-manager-drab.vercel.app'
 
 export default function Designers({ onNavigate }) {
   const { profile } = useAuth()
-  const { designers, assignments, topics, labels, designerLabels, loading, refresh } = useData()
-  const designerLabelsState = designerLabels
+  const {
+    designers, assignments, topics, labels, designerLabels, loading, refresh,
+    setDesigners, setAssignments, setDesignerLabels: setDesignerLabelsState,
+  } = useData()
 
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState(EMPTY)
@@ -34,21 +36,56 @@ export default function Designers({ onNavigate }) {
   async function save() {
     if (!form.name.trim()) return
     setSaving(true)
-    let id = editId
-    if (editId) await updateDesigner({ id: editId, ...form })
-    else {
-      const result = await addDesigner(form, profile?.id)
-      id = result.id
+    const patch = { name: form.name, nickname: form.nickname, specialty: form.specialty, note: form.note }
+
+    if (editId) {
+      const id = editId
+      // 낙관적 업데이트: 서버 응답 기다리지 않고 화면부터 갱신
+      setDesigners(prev => prev.map(d => d.id === id ? { ...d, ...patch } : d))
+      setDesignerLabelsState(prev => [
+        ...prev.filter(dl => String(dl.designer_id) !== String(id)),
+        ...selectedLabels.map(lid => ({ designer_id: id, label_id: lid })),
+      ])
+      setSaving(false); setModal(false)
+      try {
+        await updateDesigner({ id, ...form })
+        await setDesignerLabels(id, selectedLabels)
+      } catch (err) {
+        alert('저장 실패: ' + err.message)
+        refresh()
+      }
+    } else {
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      setDesigners(prev => [...prev, { id: tempId, ...patch, token: '', pm_id: profile?.id }])
+      setDesignerLabelsState(prev => [...prev, ...selectedLabels.map(lid => ({ designer_id: tempId, label_id: lid }))])
+      setSaving(false); setModal(false)
+      try {
+        const result = await addDesigner(form, profile?.id)
+        setDesigners(prev => prev.map(d => d.id === tempId ? result : d))
+        setDesignerLabelsState(prev => prev.map(dl => String(dl.designer_id) === tempId ? { ...dl, designer_id: result.id } : dl))
+        await setDesignerLabels(result.id, selectedLabels)
+      } catch (err) {
+        setDesigners(prev => prev.filter(d => d.id !== tempId))
+        setDesignerLabelsState(prev => prev.filter(dl => String(dl.designer_id) !== tempId))
+        alert('추가 실패: ' + err.message)
+      }
     }
-    await setDesignerLabels(id, selectedLabels)
-    setSaving(false); setModal(false); refresh()
   }
 
   async function remove(id) {
     const count = assignments.filter(a => String(a.designer_id) === String(id)).length
     const msg = count > 0 ? `이 디자이너의 배정 ${count}건도 함께 삭제됩니다. 계속할까요?` : '삭제할까요?'
     if (!confirm(msg)) return
-    await deleteDesigner(id); refresh()
+    const prevDesigners = designers, prevAssignments = assignments, prevDesignerLabels = designerLabels
+    setDesigners(prev => prev.filter(d => d.id !== id))
+    setAssignments(prev => prev.filter(a => String(a.designer_id) !== String(id)))
+    setDesignerLabelsState(prev => prev.filter(dl => String(dl.designer_id) !== String(id)))
+    try {
+      await deleteDesigner(id)
+    } catch (err) {
+      setDesigners(prevDesigners); setAssignments(prevAssignments); setDesignerLabelsState(prevDesignerLabels)
+      alert('삭제 실패: ' + err.message)
+    }
   }
 
   const countFor = (id) => ({
@@ -208,7 +245,20 @@ export default function Designers({ onNavigate }) {
                           {t?.brief_url && <a href={t.brief_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>기획서 열기 →</a>}
                         </div>
                         <select value={status}
-                          onChange={async e => { await updateAssignmentStatus(a.id, e.target.value, topicMap[String(a.topic_id)]?.name); refresh() }}
+                          onChange={async e => {
+                            const newStatus = e.target.value
+                            const prevAssignments = assignments
+                            setAssignments(prev => prev.map(x => x.id === a.id ? {
+                              ...x, status: newStatus,
+                              approved_at: newStatus === 'approved' ? new Date().toISOString() : '',
+                            } : x))
+                            try {
+                              await updateAssignmentStatus(a.id, newStatus, topicMap[String(a.topic_id)]?.name)
+                            } catch (err) {
+                              setAssignments(prevAssignments)
+                              alert('상태 변경 실패: ' + err.message)
+                            }
+                          }}
                           style={{ padding: '4px 8px', border: `1.5px solid ${color}`, borderRadius: 6, background: color + '11', color, fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%' }}>
                           {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'assigned').map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                         </select>

@@ -14,7 +14,7 @@ const STATUS_COLUMNS = [
 const STATUS_MAP = Object.fromEntries(STATUS_COLUMNS.map(s => [s.value, s]))
 
 export default function Assignments() {
-  const { designers, topics, assignments, labels, designerLabels, topicLabels, templateAssignments, loading, refresh } = useData()
+  const { designers, topics, assignments, labels, designerLabels, topicLabels, templateAssignments, loading, refresh, setAssignments } = useData()
 
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState({ designerId: '', topicIds: [], visibleAt: '' })
@@ -28,7 +28,6 @@ export default function Assignments() {
   const [autoSuggestions, setAutoSuggestions] = useState([])
   const [selectedAuto, setSelectedAuto] = useState([])
   const [autoTopicId, setAutoTopicId] = useState(null)
-  const [saving, setSaving] = useState(false)
   const [viewMode, setViewMode] = useState('table')
   const [tierMap, setTierMap] = useState({})
   const [tierSaving, setTierSaving] = useState(false)
@@ -55,6 +54,57 @@ export default function Assignments() {
   const designerMap = Object.fromEntries(designers.map(d => [String(d.id), d]))
   const topicMap = Object.fromEntries(topics.map(t => [String(t.id), t]))
 
+  // ── 낙관적 업데이트 헬퍼: 서버 응답 기다리지 않고 화면부터 갱신, 실패 시 되돌림 ──
+  function makeOptimisticAssignment(designerId, topicId, visibleAt) {
+    return {
+      id: `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      designer_id: designerId, topic_id: topicId, status: 'assigned',
+      visible_at: visibleAt ? new Date(visibleAt + 'T00:00:00').toISOString() : '',
+      deadline: '', tier: '', approved_at: '', topic_name: '',
+    }
+  }
+
+  async function changeStatus(a, newStatus) {
+    const prevAssignments = assignments
+    setAssignments(prev => prev.map(x => x.id === a.id ? {
+      ...x, status: newStatus,
+      approved_at: newStatus === 'approved' ? new Date().toISOString() : '',
+    } : x))
+    try {
+      await updateAssignmentStatus(a.id, newStatus, topicMap[String(a.topic_id)]?.name)
+    } catch (err) {
+      setAssignments(prevAssignments)
+      alert('상태 변경 실패: ' + err.message)
+    }
+  }
+
+  async function changeDeadline(a, newDeadline) {
+    const prevAssignments = assignments
+    setAssignments(prev => prev.map(x => x.id === a.id ? { ...x, deadline: newDeadline } : x))
+    try {
+      await updateAssignmentDeadline(a.id, newDeadline)
+    } catch (err) {
+      setAssignments(prevAssignments)
+      alert('마감일 변경 실패: ' + err.message)
+    }
+  }
+
+  async function removeAssignment(a) {
+    if (!confirm('배정을 삭제할까요?')) return
+    const prevAssignments = assignments
+    if (a.status === 'approved') {
+      setAssignments(prev => prev.map(x => x.id === a.id ? { ...x, topic_id: '' } : x))
+    } else {
+      setAssignments(prev => prev.filter(x => x.id !== a.id))
+    }
+    try {
+      await deleteAssignment(a.id)
+    } catch (err) {
+      setAssignments(prevAssignments)
+      alert('삭제 실패: ' + err.message)
+    }
+  }
+
   function getAutoSuggestedDesigners(topicId) {
     const tLabelIds = topicLabels.filter(tl => tl.topic_id === topicId).map(tl => tl.label_id)
     if (tLabelIds.length === 0) return []
@@ -75,11 +125,18 @@ export default function Assignments() {
   }
 
   async function confirmAuto() {
-    setSaving(true)
-    for (const dId of selectedAuto) {
-      await addAssignment({ designerId: dId, topicId: autoTopicId })
+    const dIds = selectedAuto
+    const topicId = autoTopicId
+    const optimisticRows = dIds.map(dId => makeOptimisticAssignment(dId, topicId, null))
+    setAssignments(prev => [...prev, ...optimisticRows])
+    setShowAutoModal(false)
+    try {
+      const results = await Promise.all(dIds.map(dId => addAssignment({ designerId: dId, topicId })))
+      setAssignments(prev => [...prev.filter(a => !optimisticRows.includes(a)), ...results])
+    } catch (err) {
+      setAssignments(prev => prev.filter(a => !optimisticRows.includes(a)))
+      alert('배정 실패: ' + err.message)
     }
-    setSaving(false); setShowAutoModal(false); refresh()
   }
 
   const assignedTopicIds = form.designerId
@@ -95,13 +152,18 @@ export default function Assignments() {
 
   async function save() {
     if (!form.designerId || form.topicIds.length === 0) return
-    setSaving(true)
-    for (const topicId of form.topicIds) {
-      if (allowDuplicate || !assignedTopicIds.includes(String(topicId))) {
-        await addAssignment({ designerId: Number(form.designerId), topicId: Number(topicId), visibleAt: form.visibleAt || null })
-      }
+    const designerId = form.designerId, visibleAt = form.visibleAt
+    const topicIds = form.topicIds.filter(topicId => allowDuplicate || !assignedTopicIds.includes(String(topicId)))
+    const optimisticRows = topicIds.map(topicId => makeOptimisticAssignment(designerId, topicId, visibleAt))
+    setAssignments(prev => [...prev, ...optimisticRows])
+    setModal(false); setForm({ designerId: '', topicIds: [], visibleAt: '' }); setAllowDuplicate(false)
+    try {
+      const results = await Promise.all(topicIds.map(topicId => addAssignment({ designerId, topicId, visibleAt: visibleAt || null })))
+      setAssignments(prev => [...prev.filter(a => !optimisticRows.includes(a)), ...results])
+    } catch (err) {
+      setAssignments(prev => prev.filter(a => !optimisticRows.includes(a)))
+      alert('배정 실패: ' + err.message)
     }
-    setSaving(false); setModal(false); setForm({ designerId: '', topicIds: [], visibleAt: '' }); setAllowDuplicate(false); refresh()
   }
 
   const getDesignerGrade = (did) => {
@@ -206,12 +268,17 @@ export default function Assignments() {
       ...stepGrade.map(r => r.selectedDesignerIds.map(did => ({ designerId: did, topicId: r.topic.id }))).flat(),
       ...stepRandom.map(r => r.selectedDesignerIds.map(did => ({ designerId: did, topicId: r.topic.id }))).flat(),
     ]
-
-    setSaving(true)
-    for (const { designerId, topicId } of all) {
-      await addAssignment({ designerId, topicId, visibleAt: wizardVisibleAt || null })
+    const visibleAt = wizardVisibleAt
+    const optimisticRows = all.map(({ designerId, topicId }) => makeOptimisticAssignment(designerId, topicId, visibleAt))
+    setAssignments(prev => [...prev, ...optimisticRows])
+    setAutoStep(0); setWizardVisibleAt('')
+    try {
+      const results = await Promise.all(all.map(({ designerId, topicId }) => addAssignment({ designerId, topicId, visibleAt: visibleAt || null })))
+      setAssignments(prev => [...prev.filter(a => !optimisticRows.includes(a)), ...results])
+    } catch (err) {
+      setAssignments(prev => prev.filter(a => !optimisticRows.includes(a)))
+      alert('배정 실패: ' + err.message)
     }
-    setSaving(false); setAutoStep(0); setWizardVisibleAt(''); refresh()
   }
 
   // 3단계: all rows merged
@@ -254,15 +321,13 @@ export default function Assignments() {
     e.dataTransfer.dropEffect = 'move'
   }
 
-  async function onDrop(e, newStatus) {
+  function onDrop(e, newStatus) {
     e.preventDefault()
     if (!dragId.current) return
     const id = dragId.current
     dragId.current = null
     const draggedAssignment = assignments.find(a => a.id === id)
-    const topicName = draggedAssignment ? topicMap[String(draggedAssignment.topic_id)]?.name : null
-    await updateAssignmentStatus(id, newStatus, topicName)
-    refresh()
+    if (draggedAssignment) changeStatus(draggedAssignment, newStatus)
   }
 
   const tdStyle = { padding: '11px 16px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle', fontSize: 13 }
@@ -363,7 +428,7 @@ export default function Assignments() {
                           </a>
                         )}
                         {/* 삭제 */}
-                        <button onClick={async () => { if (confirm('배정을 삭제할까요?')) { await deleteAssignment(a.id); refresh() } }}
+                        <button onClick={() => removeAssignment(a)}
                           style={{ display: 'block', marginTop: 10, width: '100%', padding: '4px', fontSize: 11, color: '#dc2626', background: '#fff5f5', border: '1px solid #fca5a5', borderRadius: 6, cursor: 'pointer' }}>
                           삭제
                         </button>
@@ -428,7 +493,7 @@ export default function Assignments() {
                         <td style={{ ...tdStyle, color: overdue ? 'var(--danger)' : undefined }}>
                           <input type="date"
                             value={dateOnly(a.deadline || t?.deadline) || ''}
-                            onChange={async e => { await updateAssignmentDeadline(a.id, e.target.value); refresh() }}
+                            onChange={e => changeDeadline(a, e.target.value)}
                             style={{ border: 'none', background: 'transparent', fontSize: 13, color: overdue ? 'var(--danger)' : 'inherit', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }} />
                           {overdue && <span style={{ marginLeft: 6, fontSize: 11, background: '#fee2e2', color: 'var(--danger)', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>초과</span>}
                         </td>
@@ -442,13 +507,13 @@ export default function Assignments() {
                         </td>
                         <td style={tdStyle}>
                           <select style={{ padding: '5px 8px', border: `1.5px solid ${statusInfo.color}`, borderRadius: 7, background: statusInfo.bg, fontSize: 12, cursor: 'pointer', color: statusInfo.color, fontWeight: 600 }}
-                            value={a.status || 'not_submitted'} onChange={async e => { await updateAssignmentStatus(a.id, e.target.value, topicMap[String(a.topic_id)]?.name); refresh() }}>
+                            value={a.status || 'not_submitted'} onChange={e => changeStatus(a, e.target.value)}>
                             {STATUS_COLUMNS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                           </select>
                         </td>
                         <td style={tdStyle}>
                           <button className="btn btn-danger" style={{ fontSize: 12, padding: '4px 10px' }}
-                            onClick={async () => { if (confirm('배정을 삭제할까요?')) { await deleteAssignment(a.id); refresh() } }}>삭제</button>
+                            onClick={() => removeAssignment(a)}>삭제</button>
                         </td>
                       </tr>
                     )
@@ -612,9 +677,9 @@ export default function Assignments() {
               </div>
               <button className="btn btn-ghost" onClick={() => { setModal(false); setAllowDuplicate(false) }}>취소</button>
               <button className="btn btn-primary" onClick={save}
-                disabled={!form.designerId || form.topicIds.length === 0 || saving}
+                disabled={!form.designerId || form.topicIds.length === 0}
                 style={{ opacity: (!form.designerId || form.topicIds.length === 0) ? 0.5 : 1 }}>
-                {saving ? '배정 중...' : form.topicIds.length > 0 ? `${form.topicIds.length}개 배정` : '배정'}
+                {form.topicIds.length > 0 ? `${form.topicIds.length}개 배정` : '배정'}
               </button>
               </div>
             </div>
@@ -851,8 +916,8 @@ export default function Assignments() {
 
                   <div className="ma">
                     <button className="btn btn-ghost" onClick={() => setAutoStep(2)}>← 이전</button>
-                    <button className="btn btn-primary" onClick={confirmWizard} disabled={saving}>
-                      {saving ? '배정 중...' : '배정 확정'}
+                    <button className="btn btn-primary" onClick={confirmWizard}>
+                      배정 확정
                     </button>
                   </div>
                 </>
@@ -899,9 +964,9 @@ export default function Assignments() {
             <div className="ma">
               <button className="btn btn-ghost" onClick={() => setShowAutoModal(false)}>취소</button>
               <button className="btn btn-primary" onClick={confirmAuto}
-                disabled={selectedAuto.length === 0 || saving}
+                disabled={selectedAuto.length === 0}
                 style={{ opacity: selectedAuto.length === 0 ? 0.5 : 1 }}>
-                {saving ? '배정 중...' : `${selectedAuto.length}명 배정 확정`}
+                {selectedAuto.length}명 배정 확정
               </button>
             </div>
           </div>

@@ -7,7 +7,7 @@ const COLORS = ['#6366f1','#3b82f6','#22c55e','#f59e0b','#ef4444','#ec4899','#8b
 
 export default function Labels() {
   const { profile } = useAuth()
-  const { labels, designerLabels, designers, loading, refresh } = useData()
+  const { labels, designerLabels, designers, loading, refresh, setLabels, setDesignerLabels: setDesignerLabelsState } = useData()
   const [modal, setModal] = useState(false)
   // mode: 'category' | 'child'
   const [modalMode, setModalMode] = useState('category')
@@ -37,14 +37,38 @@ export default function Labels() {
   async function save() {
     if (!form.name.trim()) return
     setSaving(true)
-    try {
-      if (editId) await updateLabel(editId, form.name.trim(), form.color)
-      else await addLabel(form.name.trim(), form.color, profile?.id, parentId)
-      setModal(false); refresh()
-    } catch (e) {
-      alert('저장 실패: ' + e.message)
+    const name = form.name.trim(), color = form.color
+
+    if (editId) {
+      const id = editId
+      setLabels(prev => prev.map(l => l.id === id ? { ...l, name, color } : l))
+      setSaving(false); setModal(false)
+      try {
+        await updateLabel(id, name, color)
+      } catch (e) {
+        alert('저장 실패: ' + e.message)
+        refresh()
+      }
+    } else {
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      setLabels(prev => [...prev, { id: tempId, name, color, pm_id: profile?.id, parent_id: parentId || '' }])
+      setSaving(false); setModal(false)
+      try {
+        const result = await addLabel(name, color, profile?.id, parentId)
+        setLabels(prev => prev.map(l => l.id === tempId ? result : l))
+      } catch (e) {
+        setLabels(prev => prev.filter(l => l.id !== tempId))
+        alert('저장 실패: ' + e.message)
+      }
     }
-    setSaving(false)
+  }
+
+  // 라벨 삭제 시 로컬 상태에서도 백엔드와 동일하게 하위 라벨 + 연결된 디자이너/주제 매칭까지 함께 제거
+  function removeLabelsLocally(ids) {
+    const children = labels.filter(l => ids.includes(l.parent_id))
+    const idSet = new Set([...ids, ...children.map(c => c.id)].map(String))
+    setLabels(prev => prev.filter(l => !idSet.has(String(l.id))))
+    setDesignerLabelsState(prev => prev.filter(dl => !idSet.has(String(dl.label_id))))
   }
 
   async function remove(l, childCount = 0) {
@@ -53,7 +77,14 @@ export default function Labels() {
     if (childCount > 0) msg = `"${l.name}" 카테고리와 하위 라벨 ${childCount}개가 모두 삭제됩니다. 계속할까요?`
     else if (used > 0) msg = `이 라벨은 ${used}명에게 사용 중입니다. 삭제할까요?`
     if (!confirm(msg)) return
-    await deleteLabel(l.id); refresh()
+    const prevLabels = labels, prevDesignerLabels = designerLabels
+    removeLabelsLocally([l.id])
+    try {
+      await deleteLabel(l.id)
+    } catch (e) {
+      setLabels(prevLabels); setDesignerLabelsState(prevDesignerLabels)
+      alert('삭제 실패: ' + e.message)
+    }
   }
 
   const categories = labels.filter(l => !l.parent_id)
@@ -66,8 +97,15 @@ export default function Labels() {
 
   async function removeChecked() {
     if (!confirm(`선택한 카테고리 ${checkedIds.length}개를 삭제할까요? 하위 라벨도 함께 삭제됩니다.`)) return
-    for (const id of checkedIds) await deleteLabel(id)
-    setCheckedIds([]); refresh()
+    const ids = checkedIds
+    removeLabelsLocally(ids)
+    setCheckedIds([])
+    try {
+      for (const id of ids) await deleteLabel(id)
+    } catch (e) {
+      alert('일부 삭제 실패: ' + e.message)
+      refresh()
+    }
   }
 
   function toggleCheck(id) {

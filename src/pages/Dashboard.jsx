@@ -55,7 +55,6 @@ export default function Dashboard({ onNavigate }) {
   const [showLinkForm, setShowLinkForm] = useState(false)
   const contentRef = React.useRef(null)
   const [editNoticeId, setEditNoticeId] = useState(null)
-  const [savingNotice, setSavingNotice] = useState(false)
 
   useEffect(() => { if (profile?.id) loadNotices() }, [profile?.id])
 
@@ -65,14 +64,30 @@ export default function Dashboard({ onNavigate }) {
 
   async function saveNotice() {
     if (!noticeForm.title.trim()) return
-    setSavingNotice(true)
-    if (editNoticeId) await updateNotice(editNoticeId, noticeForm.title, noticeForm.content)
-    else await addNotice(noticeForm.title, noticeForm.content, profile?.id)
-    setSavingNotice(false)
-    setNoticeModal(false)
-    setNoticeForm({ title: '', content: '' })
-    setEditNoticeId(null)
-    setNotices(await getNotices(profile?.id))
+    const title = noticeForm.title.trim(), content = noticeForm.content
+
+    if (editNoticeId) {
+      const id = editNoticeId
+      setNotices(prev => prev.map(n => n.id === id ? { ...n, title, content } : n))
+      setNoticeModal(false); setNoticeForm({ title: '', content: '' }); setEditNoticeId(null)
+      try {
+        await updateNotice(id, title, content)
+      } catch (err) {
+        alert('저장 실패: ' + err.message)
+        loadNotices()
+      }
+    } else {
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      setNotices(prev => [{ id: tempId, title, content, pm_id: profile?.id }, ...prev])
+      setNoticeModal(false); setNoticeForm({ title: '', content: '' }); setEditNoticeId(null)
+      try {
+        const result = await addNotice(title, content, profile?.id)
+        setNotices(prev => prev.map(n => n.id === tempId ? result : n))
+      } catch (err) {
+        setNotices(prev => prev.filter(n => n.id !== tempId))
+        alert('추가 실패: ' + err.message)
+      }
+    }
   }
 
   function openAddNotice() {
@@ -104,8 +119,14 @@ export default function Dashboard({ onNavigate }) {
 
   async function removeNotice(id) {
     if (!confirm('공지를 삭제할까요?')) return
-    await deleteNotice(id)
-    setNotices(await getNotices(profile?.id))
+    const prevNotices = notices
+    setNotices(prev => prev.filter(n => n.id !== id))
+    try {
+      await deleteNotice(id)
+    } catch (err) {
+      setNotices(prevNotices)
+      alert('삭제 실패: ' + err.message)
+    }
   }
 
   const topicMap = Object.fromEntries(topics.map(t => [String(t.id), t]))
@@ -353,8 +374,8 @@ export default function Dashboard({ onNavigate }) {
             </div>
             <div className="ma">
               <button className="btn btn-ghost" onClick={() => setNoticeModal(false)}>취소</button>
-              <button className="btn btn-primary" onClick={saveNotice} disabled={savingNotice || !noticeForm.title.trim()}>
-                {savingNotice ? '저장 중...' : editNoticeId ? '저장' : '추가'}
+              <button className="btn btn-primary" onClick={saveNotice} disabled={!noticeForm.title.trim()}>
+                {editNoticeId ? '저장' : '추가'}
               </button>
             </div>
           </div>
