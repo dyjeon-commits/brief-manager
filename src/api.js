@@ -98,14 +98,9 @@ export async function updateTopic(data) {
 export async function deleteTopic(id) {
   await call('setJoin', { sheet: 'template_assignments', keyField: 'topic_id', keyValue: id, rows: [] })
   await call('setJoin', { sheet: 'topic_labels', keyField: 'topic_id', keyValue: id, rows: [] })
-  // 심사완료(approved)된 배정은 작업 이력 보존을 위해 삭제하지 않음 — topic_id만 끊어서 조회에서만 제외
   const all = await call('getAll')
-  const toClear = (all.assignments || []).filter(a => String(a.topic_id) === String(id) && a.approved_at)
-  const toDelete = (all.assignments || []).filter(a => String(a.topic_id) === String(id) && !a.approved_at)
-  await Promise.all([
-    ...toClear.map(a => call('update', { sheet: 'assignments', id: a.id, patch: { topic_id: '' } })),
-    ...toDelete.map(a => call('delete', { sheet: 'assignments', id: a.id })),
-  ])
+  const toDelete = (all.assignments || []).filter(a => String(a.topic_id) === String(id))
+  await Promise.all(toDelete.map(a => call('delete', { sheet: 'assignments', id: a.id })))
   await call('delete', { sheet: 'topics', id })
 }
 

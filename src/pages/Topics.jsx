@@ -92,14 +92,11 @@ export default function Topics() {
     }
   }
 
-  // topics 삭제 시 로컬 상태에서도 백엔드와 동일한 규칙 적용:
-  // 심사완료(approved_at 있음) 배정은 이력 보존을 위해 topic_id만 비우고, 나머지는 제거
+  // topics 삭제 시 로컬 상태에서도 백엔드와 동일한 규칙 적용: 상태와 상관없이 관련 배정도 전부 제거
   function removeTopicsLocally(ids) {
     const idSet = new Set(ids.map(String))
     setTopics(prev => prev.filter(t => !idSet.has(String(t.id))))
-    setAssignments(prev => prev
-      .filter(a => !idSet.has(String(a.topic_id)) || a.approved_at)
-      .map(a => idSet.has(String(a.topic_id)) && a.approved_at ? { ...a, topic_id: '' } : a))
+    setAssignments(prev => prev.filter(a => !idSet.has(String(a.topic_id))))
     setTopicLabelsState(prev => prev.filter(tl => !idSet.has(String(tl.topic_id))))
     setTemplateAssignmentsState(prev => prev.filter(tm => !idSet.has(String(tm.topic_id))))
   }
