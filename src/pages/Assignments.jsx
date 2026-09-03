@@ -187,6 +187,35 @@ export default function Assignments() {
     return da.localeCompare(db)
   })
 
+  function downloadCsv() {
+    const escape = v => {
+      const s = String(v ?? '')
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+    }
+    const rows = filtered.map(a => {
+      const t = topicMap[String(a.topic_id)]
+      const d = designerMap[String(a.designer_id)]
+      const deadline = dateOnly(a.deadline || t?.deadline)
+      return [
+        d?.name || '',
+        t?.name || '',
+        t?.type || '',
+        deadline ? deadline.replaceAll('-', '.') : '',
+        t?.pages ?? '',
+        STATUS_MAP[a.status]?.label || STATUS_COLUMNS[0].label,
+      ]
+    })
+    const csv = [['디자이너', '작업주제', '타입', '마감일', '총 페이지', '상태'], ...rows]
+      .map(row => row.map(escape).join(',')).join('\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `배정현황_${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const isOverdue = a => {
     const t = topicMap[String(a.topic_id)]
     const deadline = a.deadline || t?.deadline
@@ -352,6 +381,7 @@ export default function Assignments() {
             ))}
           </div>
           <button className="btn btn-primary" onClick={startWizard} style={{ background: '#f59e0b', borderColor: '#f59e0b' }}>⚡ 전체 자동 배분</button>
+          <button className="btn btn-ghost" onClick={downloadCsv}>📥 CSV 다운로드</button>
           <button className="btn btn-primary" onClick={() => { setForm({ designerId: '', topicIds: [] }); setModal(true) }}>+ 배정 추가</button>
         </div>
       </div>
