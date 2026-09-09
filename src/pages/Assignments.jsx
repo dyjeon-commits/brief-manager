@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { addAssignment, deleteAssignment, updateAssignmentStatus, updateAssignmentDeadline, setAssignmentTiers } from '../api'
+import { addAssignment, deleteAssignment, updateAssignmentStatus, updateAssignmentDeadline, setAssignmentTiers, upsertSettlement } from '../api'
 import { useData } from '../DataContext'
-import { dateOnly } from '../dateUtils'
+import { dateOnly, monthKey } from '../dateUtils'
 
 const STATUS_COLUMNS = [
   { value: 'not_submitted', label: '제출 안함', color: '#94a3b8', bg: '#f1f5f9' },
@@ -14,7 +14,7 @@ const STATUS_COLUMNS = [
 const STATUS_MAP = Object.fromEntries(STATUS_COLUMNS.map(s => [s.value, s]))
 
 export default function Assignments() {
-  const { designers, topics, assignments, labels, designerLabels, topicLabels, templateAssignments, loading, refresh, setAssignments } = useData()
+  const { designers, topics, assignments, labels, designerLabels, topicLabels, templateAssignments, settlements, loading, refresh, setAssignments, setSettlements } = useData()
 
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState({ designerId: '', topicIds: [], visibleAt: '' })
@@ -54,6 +54,30 @@ export default function Assignments() {
   const designerMap = Object.fromEntries(designers.map(d => [String(d.id), d]))
   const topicMap = Object.fromEntries(topics.map(t => [String(t.id), t]))
 
+  // 템플릿 배분(template_assignments)이 있으면 그 개수, 없으면 주제의 인당 템플릿 수를 사용
+  function getQty(designerId, topicId) {
+    const tmplCount = templateAssignments.filter(ta => String(ta.designer_id) === String(designerId) && String(ta.topic_id) === String(topicId)).length
+    if (tmplCount > 0) return tmplCount
+    return topicMap[String(topicId)]?.qty_per_person || 1
+  }
+  // 정산 = (컨셉비용 + 15,000 × 페이지) × 템플릿 수
+  function settlementAmount(topic, qty) {
+    if (!topic) return 0
+    return ((Number(topic.concept_fee) || 0) + 15000 * (Number(topic.pages) || 0)) * qty
+  }
+  // 이번 달 예상 정산 부담 = 이번 달 심사완료 확정액 + 아직 심사완료 안 된 진행중 배정 전부
+  // (진행중 배정은 아직 몇 월에 심사완료될지 몰라서 월 구분 없이 전부 더한다)
+  function monthlyLoad(designerId) {
+    const nowMonth = monthKey()
+    const approvedThisMonth = settlements
+      .filter(s => String(s.designer_id) === String(designerId) && s.status === 'approved' && monthKey(s.month) === nowMonth)
+      .reduce((sum, s) => sum + (Number(s.amount) || 0), 0)
+    const inProgress = assignments
+      .filter(a => String(a.designer_id) === String(designerId) && a.status !== 'approved')
+      .reduce((sum, a) => sum + settlementAmount(topicMap[String(a.topic_id)], getQty(a.designer_id, a.topic_id)), 0)
+    return approvedThisMonth + inProgress
+  }
+
   // ── 낙관적 업데이트 헬퍼: 서버 응답 기다리지 않고 화면부터 갱신, 실패 시 되돌림 ──
   function makeOptimisticAssignment(designerId, topicId, visibleAt) {
     return {
@@ -66,14 +90,45 @@ export default function Assignments() {
 
   async function changeStatus(a, newStatus) {
     const prevAssignments = assignments
+    const prevSettlements = settlements
+    const nowIso = new Date().toISOString()
     setAssignments(prev => prev.map(x => x.id === a.id ? {
       ...x, status: newStatus,
-      approved_at: newStatus === 'approved' ? new Date().toISOString() : '',
+      approved_at: newStatus === 'approved' ? nowIso : '',
     } : x))
+
+    // 정산 스냅샷: 심사완료가 되는 순간 금액을 기록해두고, 심사완료에서 벗어나면
+    // 그 기록은 지우지 않고 상태만 취소 처리한다 (나중에 주제/배정이 지워져도 이 기록은 안 없어짐)
+    const t = topicMap[String(a.topic_id)]
+    const qty = getQty(a.designer_id, a.topic_id)
+    const existing = settlements.find(s => String(s.assignment_id) === String(a.id))
+    let optimistic = null
+    if (newStatus === 'approved') {
+      const month = monthKey(nowIso)
+      optimistic = {
+        id: existing?.id || `temp-settle-${Date.now()}`,
+        designer_id: a.designer_id, assignment_id: a.id, topic_name: t?.name || '',
+        month, pages: t?.pages ?? '', concept_fee: t?.concept_fee ?? '',
+        template_count: qty, amount: settlementAmount(t, qty), status: 'approved',
+      }
+      setSettlements(prev => existing ? prev.map(s => s.id === existing.id ? optimistic : s) : [...prev, optimistic])
+    } else if (existing) {
+      optimistic = { ...existing, status: 'cancelled' }
+      setSettlements(prev => prev.map(s => s.id === existing.id ? optimistic : s))
+    }
+
     try {
-      await updateAssignmentStatus(a.id, newStatus, topicMap[String(a.topic_id)]?.name)
+      await updateAssignmentStatus(a.id, newStatus, t?.name)
+      if (optimistic) {
+        const result = await upsertSettlement(prevSettlements, a.id, {
+          designerId: a.designer_id, topicName: t?.name, pages: t?.pages, conceptFee: t?.concept_fee,
+          templateCount: qty, month: optimistic.month, status: optimistic.status,
+        })
+        setSettlements(prev => [...prev.filter(s => s.id !== optimistic.id), result])
+      }
     } catch (err) {
       setAssignments(prevAssignments)
+      setSettlements(prevSettlements)
       alert('상태 변경 실패: ' + err.message)
     }
   }
@@ -90,13 +145,9 @@ export default function Assignments() {
   }
 
   async function removeAssignment(a) {
-    if (!confirm('배정을 삭제할까요?')) return
+    if (!confirm('배정을 삭제할까요? (정산 기록은 남습니다)')) return
     const prevAssignments = assignments
-    if (a.status === 'approved') {
-      setAssignments(prev => prev.map(x => x.id === a.id ? { ...x, topic_id: '' } : x))
-    } else {
-      setAssignments(prev => prev.filter(x => x.id !== a.id))
-    }
+    setAssignments(prev => prev.filter(x => x.id !== a.id))
     try {
       await deleteAssignment(a.id)
     } catch (err) {
@@ -196,16 +247,18 @@ export default function Assignments() {
       const t = topicMap[String(a.topic_id)]
       const d = designerMap[String(a.designer_id)]
       const deadline = dateOnly(a.deadline || t?.deadline)
+      const qty = getQty(a.designer_id, a.topic_id)
       return [
         d?.name || '',
         t?.name || '',
         t?.type || '',
         deadline ? deadline.replaceAll('-', '.') : '',
         t?.pages ?? '',
+        settlementAmount(t, qty),
         STATUS_MAP[a.status]?.label || STATUS_COLUMNS[0].label,
       ]
     })
-    const csv = [['디자이너', '작업주제', '타입', '마감일', '총 페이지', '상태'], ...rows]
+    const csv = [['디자이너', '작업주제', '타입', '마감일', '총 페이지', '정산액', '상태'], ...rows]
       .map(row => row.map(escape).join(',')).join('\n')
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -475,7 +528,7 @@ export default function Assignments() {
         <div className="card" style={{ overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr>{['디자이너', '작업주제', '타입', '기획서', '마감일', '총 페이지', '총 템플릿', '상태', ''].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
+              <tr>{['디자이너', '작업주제', '타입', '기획서', '마감일', '총 페이지', '총 템플릿', '정산액', '상태', ''].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
             </thead>
             <tbody>
               {(() => {
@@ -529,11 +582,10 @@ export default function Assignments() {
                         </td>
                         <td style={tdStyle}>{t?.pages ? `${t.pages}p` : '-'}</td>
                         <td style={{ ...tdStyle, fontWeight: 600, color: '#6366f1' }}>
-                          {(() => {
-                            const tmplCount = templateAssignments.filter(ta => String(ta.designer_id) === String(a.designer_id) && String(ta.topic_id) === String(a.topic_id)).length
-                            const qty = tmplCount > 0 ? tmplCount : (t?.qty_per_person || 1)
-                            return `${qty}개`
-                          })()}
+                          {getQty(a.designer_id, a.topic_id)}개
+                        </td>
+                        <td style={{ ...tdStyle, fontWeight: 600, color: '#0891b2' }}>
+                          ₩{settlementAmount(t, getQty(a.designer_id, a.topic_id)).toLocaleString()}
                         </td>
                         <td style={tdStyle}>
                           <select style={{ padding: '5px 8px', border: `1.5px solid ${statusInfo.color}`, borderRadius: 7, background: statusInfo.bg, fontSize: 12, cursor: 'pointer', color: statusInfo.color, fontWeight: 600 }}
@@ -549,18 +601,20 @@ export default function Assignments() {
                     )
                   })
                   // subtotal row
-                  const totalWork = aList.reduce((sum, a) => {
-                    const t = topicMap[String(a.topic_id)]
-                    const tmplCount = templateAssignments.filter(ta => String(ta.designer_id) === did && String(ta.topic_id) === String(a.topic_id)).length
-                    return sum + (tmplCount > 0 ? tmplCount : (t?.qty_per_person || 1))
-                  }, 0)
+                  let totalWork = 0, totalAmount = 0
+                  aList.forEach(a => {
+                    const qty = getQty(a.designer_id, a.topic_id)
+                    totalWork += qty
+                    totalAmount += settlementAmount(topicMap[String(a.topic_id)], qty)
+                  })
                   const d = designerMap[did]
                   rows.push(
                     <tr key={`sub-${did}`} style={{ background: '#f8fafc', borderTop: '2px solid var(--border)' }}>
-                      <td colSpan={9} style={{ ...tdStyle, fontSize: 12, color: 'var(--text2)', borderBottom: '2px solid #cbd5e1' }}>
+                      <td colSpan={10} style={{ ...tdStyle, fontSize: 12, color: 'var(--text2)', borderBottom: '2px solid #cbd5e1' }}>
                         <span style={{ fontWeight: 700, color: '#334155' }}>{d?.name}</span> 소계 —&nbsp;
                         총 <strong style={{ color: '#6366f1' }}>{aList.length}건</strong> 배정,&nbsp;
-                        총 템플릿 <strong style={{ color: '#0891b2' }}>{totalWork}개</strong>
+                        총 템플릿 <strong style={{ color: '#0891b2' }}>{totalWork}개</strong>,&nbsp;
+                        정산액 <strong style={{ color: '#0891b2' }}>₩{totalAmount.toLocaleString()}</strong>
                       </td>
                     </tr>
                   )
@@ -662,6 +716,22 @@ export default function Assignments() {
                 {designers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
+            {form.designerId && (() => {
+              const d = designerMap[String(form.designerId)]
+              if (!d?.monthly_limit) return null
+              const current = monthlyLoad(d.id)
+              const projected = form.topicIds.reduce((sum, tid) => {
+                const topic = topicMap[String(tid)]
+                return sum + settlementAmount(topic, topic?.qty_per_person || 1)
+              }, 0)
+              const total = current + projected
+              const over = total > Number(d.monthly_limit)
+              return (
+                <div style={{ background: over ? '#fef2f2' : '#f0fdf4', border: `1.5px solid ${over ? '#fca5a5' : '#bbf7d0'}`, borderRadius: 8, padding: '8px 14px', marginBottom: 14, fontSize: 13, color: over ? '#dc2626' : '#15803d' }}>
+                  {over ? '⚠️ 한도 초과 — ' : ''}이번 달 예상 정산 <strong>₩{total.toLocaleString()}</strong> / 한도 ₩{Number(d.monthly_limit).toLocaleString()}
+                </div>
+              )
+            })()}
             <div className="fg">
               <label>작업주제 선택 * (복수 선택 가능)</label>
               <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 300, overflowY: 'auto' }}>
@@ -884,6 +954,9 @@ export default function Assignments() {
                   {/* 외주별 목록 */}
                   <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 300, overflowY: 'auto', marginBottom: 14 }}>
                     {designerSummary.map(({ designer: d, topics: dTopics }) => {
+                      const projected = dTopics.reduce((sum, t) => sum + settlementAmount(t, t.qty_per_person || 1), 0)
+                      const totalLoad = monthlyLoad(d.id) + projected
+                      const over = d.monthly_limit && totalLoad > Number(d.monthly_limit)
                       return (
                       <div key={d.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', background: dTopics.length === 0 ? '#fafafa' : 'white' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: dTopics.length > 0 ? 8 : 0 }}>
@@ -894,6 +967,11 @@ export default function Assignments() {
                               <span key={l.id} style={{ background: l.color + '22', color: l.color, padding: '1px 6px', borderRadius: 20, fontSize: 10, fontWeight: 600 }}>{l.name}</span>
                             ))}
                           </div>
+                          {over && (
+                            <span style={{ background: '#fee2e2', color: '#dc2626', padding: '1px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700 }}>
+                              ⚠️ 한도 초과 (₩{totalLoad.toLocaleString()} / ₩{Number(d.monthly_limit).toLocaleString()})
+                            </span>
+                          )}
                           <span style={{ background: dTopics.length > 0 ? 'var(--accent-bg)' : '#f1f5f9', color: dTopics.length > 0 ? 'var(--accent)' : 'var(--text2)', padding: '1px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, marginLeft: 'auto' }}>
                             {dTopics.length}건
                           </span>

@@ -9,3 +9,11 @@ export function dateOnly(value) {
   if (isNaN(d.getTime())) return str.slice(0, 10)
   return new Date(d.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
 }
+
+// 정산 월(YYYY-MM) 계산 — approved_at은 UTC ISO 그대로라 자정 근처(한국시간 09시 이전)에
+// 승인하면 UTC 날짜가 하루 전일 수 있다. dateOnly와 동일하게 9시간을 보정해 한국 기준 월을 구한다.
+export function monthKey(value) {
+  const d = value ? new Date(value) : new Date()
+  const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000)
+  return kst.toISOString().slice(0, 7)
+}

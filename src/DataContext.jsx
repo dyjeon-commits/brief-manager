@@ -14,6 +14,7 @@ export function DataProvider({ children }) {
   const [designerLabels, setDesignerLabels] = useState([])
   const [topicLabels, setTopicLabels] = useState([])
   const [templateAssignments, setTemplateAssignments] = useState([])
+  const [settlements, setSettlements] = useState([])
   const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(async () => {
@@ -26,6 +27,7 @@ export function DataProvider({ children }) {
     setDesignerLabels(data.designerLabels || [])
     setTopicLabels(data.topicLabels || [])
     setTemplateAssignments(data.templateAssignments || [])
+    setSettlements(data.settlements || [])
     setLoading(false)
   }, [profile?.id])
 
@@ -38,10 +40,10 @@ export function DataProvider({ children }) {
 
   return (
     <DataContext.Provider value={{
-      designers, topics, assignments, labels, designerLabels, topicLabels, templateAssignments,
+      designers, topics, assignments, labels, designerLabels, topicLabels, templateAssignments, settlements,
       loading, refresh,
       // 낙관적 업데이트용 — 각 화면이 서버 응답을 기다리지 않고 로컬 상태를 바로 갱신할 수 있게 노출
-      setDesigners, setTopics, setAssignments, setLabels, setDesignerLabels, setTopicLabels, setTemplateAssignments,
+      setDesigners, setTopics, setAssignments, setLabels, setDesignerLabels, setTopicLabels, setTemplateAssignments, setSettlements,
     }}>
       {children}
     </DataContext.Provider>

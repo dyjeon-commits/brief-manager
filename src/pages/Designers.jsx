@@ -4,7 +4,7 @@ import { useAuth } from '../AuthContext'
 import { useData } from '../DataContext'
 import { dateOnly } from '../dateUtils'
 
-const EMPTY = { name: '', nickname: '', specialty: '', note: '' }
+const EMPTY = { name: '', nickname: '', specialty: '', note: '', monthlyLimit: '' }
 
 // 외주 디자이너 전용 뷰는 VPN 없이 열려야 해서 항상 Vercel 주소로 고정한다
 // (PM 대시보드는 VPN 전용 Cloudflare 도메인에 있어 window.location.origin을 쓰면 외주가 못 엶)
@@ -27,7 +27,7 @@ export default function Designers({ onNavigate }) {
 
   function openAdd() { setForm(EMPTY); setSelectedLabels([]); setEditId(null); setModal(true) }
   function openEdit(d) {
-    setForm({ name: d.name, nickname: d.nickname || '', specialty: d.specialty || '', note: d.note || '' })
+    setForm({ name: d.name, nickname: d.nickname || '', specialty: d.specialty || '', note: d.note || '', monthlyLimit: d.monthly_limit || '' })
     const myLabels = designerLabels.filter(dl => dl.designer_id === d.id).map(dl => dl.label_id)
     setSelectedLabels(myLabels)
     setEditId(d.id); setModal(true)
@@ -36,7 +36,7 @@ export default function Designers({ onNavigate }) {
   async function save() {
     if (!form.name.trim()) return
     setSaving(true)
-    const patch = { name: form.name, nickname: form.nickname, specialty: form.specialty, note: form.note }
+    const patch = { name: form.name, nickname: form.nickname, specialty: form.specialty, note: form.note, monthly_limit: form.monthlyLimit ? parseInt(form.monthlyLimit) : '' }
 
     if (editId) {
       const id = editId
@@ -319,6 +319,10 @@ export default function Designers({ onNavigate }) {
                 </div>
               </div>
             )}
+            <div className="fg">
+              <label>월 정산 한도 (원)</label>
+              <input type="number" min={0} value={form.monthlyLimit} onChange={e => setForm(p => ({ ...p, monthlyLimit: e.target.value }))} placeholder="비워두면 한도 없음" />
+            </div>
             <div className="fg">
               <label>메모</label>
               <textarea value={form.note} onChange={e => setForm(p => ({ ...p, note: e.target.value }))} placeholder="참고사항" />

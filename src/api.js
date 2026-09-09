@@ -11,6 +11,8 @@ export async function getAll(pmId = null) {
   const dIds = new Set(designers.map(d => d.id))
   const tIds = new Set(topics.map(t => t.id))
   const filteredAssignments = (data.assignments || []).filter(a => a.topic_id && dIds.has(a.designer_id) && tIds.has(a.topic_id))
+  // 정산은 주제/배정이 지워져도 남아야 하므로 topic_id를 거치지 않고 디자이너 소속만으로 거른다
+  const filteredSettlements = (data.settlements || []).filter(s => dIds.has(s.designer_id))
 
   return {
     designers,
@@ -20,13 +22,14 @@ export async function getAll(pmId = null) {
     designerLabels: data.designerLabels || [],
     topicLabels: data.topicLabels || [],
     templateAssignments: data.templateAssignments || [],
+    settlements: filteredSettlements,
   }
 }
 
 export async function addDesigner(data, pmId) {
   return call('insert', {
     sheet: 'designers',
-    row: { name: data.name, nickname: data.nickname, specialty: data.specialty, note: data.note, pm_id: pmId, token: crypto.randomUUID() },
+    row: { name: data.name, nickname: data.nickname, specialty: data.specialty, note: data.note, pm_id: pmId, token: crypto.randomUUID(), monthly_limit: data.monthlyLimit ? parseInt(data.monthlyLimit) : '' },
   })
 }
 export async function updateDesigner(data) {
@@ -34,7 +37,7 @@ export async function updateDesigner(data) {
   await call('update', {
     sheet: 'designers',
     id,
-    patch: { name: rest.name, nickname: rest.nickname, specialty: rest.specialty, note: rest.note },
+    patch: { name: rest.name, nickname: rest.nickname, specialty: rest.specialty, note: rest.note, monthly_limit: rest.monthlyLimit ? parseInt(rest.monthlyLimit) : '' },
   })
 }
 export async function deleteDesigner(id) {
@@ -116,14 +119,8 @@ export async function addAssignment(data) {
   })
 }
 export async function deleteAssignment(id) {
-  const all = await call('getAll')
-  const a = (all.assignments || []).find(x => String(x.id) === String(id))
-  if (a?.status === 'approved') {
-    // 심사완료 배정은 이력 보존을 위해 topic_id만 null로 처리 (배정 현황에서만 사라짐)
-    await call('update', { sheet: 'assignments', id, patch: { topic_id: '' } })
-  } else {
-    await call('delete', { sheet: 'assignments', id })
-  }
+  // 정산액은 settlements에 별도로 스냅샷돼 있어 배정을 지워도 안 사라진다 — 상태와 상관없이 완전히 삭제
+  await call('delete', { sheet: 'assignments', id })
 }
 export async function updateAssignmentStatus(id, status, topicName = null) {
   const patch = { status }
@@ -134,6 +131,22 @@ export async function updateAssignmentStatus(id, status, topicName = null) {
     patch.approved_at = ''
   }
   await call('update', { sheet: 'assignments', id, patch })
+}
+// 정산 스냅샷: 주제/배정이 나중에 지워져도 이 값은 절대 같이 지워지지 않는다.
+// existingSettlements는 DataContext의 settlements 배열을 그대로 넘겨받아 매 호출마다 getAll을 새로 하지 않는다.
+export async function upsertSettlement(existingSettlements, assignmentId, data) {
+  const amount = ((Number(data.conceptFee) || 0) + 15000 * (Number(data.pages) || 0)) * (Number(data.templateCount) || 1)
+  const row = {
+    designer_id: data.designerId, assignment_id: assignmentId, topic_name: data.topicName,
+    month: data.month, pages: data.pages, concept_fee: data.conceptFee,
+    template_count: data.templateCount, amount, status: data.status,
+  }
+  const existing = (existingSettlements || []).find(s => String(s.assignment_id) === String(assignmentId))
+  if (existing) {
+    await call('update', { sheet: 'settlements', id: existing.id, patch: row })
+    return { ...existing, ...row }
+  }
+  return call('insert', { sheet: 'settlements', row })
 }
 export async function updateAssignmentDeadline(id, deadline) {
   await call('update', { sheet: 'assignments', id, patch: { deadline: deadline || '' } })
