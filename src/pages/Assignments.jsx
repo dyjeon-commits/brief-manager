@@ -88,6 +88,12 @@ export default function Assignments() {
     }
   }
 
+  // 다른 곳(다른 창/다른 사람)에서 이미 지워진 배정을 고치려 할 때 나는 에러 —
+  // 예전 화면이 아직 남아있는 것뿐이라, 롤백 대신 그 줄을 화면에서도 치운다
+  function isRowMissing(err) {
+    return /행을 찾을 수 없음/.test(err?.message || '')
+  }
+
   async function changeStatus(a, newStatus) {
     const prevAssignments = assignments
     const prevSettlements = settlements
@@ -127,9 +133,15 @@ export default function Assignments() {
         setSettlements(prev => [...prev.filter(s => s.id !== optimistic.id), result])
       }
     } catch (err) {
-      setAssignments(prevAssignments)
-      setSettlements(prevSettlements)
-      alert('상태 변경 실패: ' + err.message)
+      if (isRowMissing(err)) {
+        setAssignments(prev => prev.filter(x => x.id !== a.id))
+        setSettlements(prevSettlements)
+        alert('이미 삭제된 배정이에요 — 화면에서도 지웠어요. 최신 목록을 보려면 새로고침해주세요.')
+      } else {
+        setAssignments(prevAssignments)
+        setSettlements(prevSettlements)
+        alert('상태 변경 실패: ' + err.message)
+      }
     }
   }
 
@@ -139,8 +151,13 @@ export default function Assignments() {
     try {
       await updateAssignmentDeadline(a.id, newDeadline)
     } catch (err) {
-      setAssignments(prevAssignments)
-      alert('마감일 변경 실패: ' + err.message)
+      if (isRowMissing(err)) {
+        setAssignments(prev => prev.filter(x => x.id !== a.id))
+        alert('이미 삭제된 배정이에요 — 화면에서도 지웠어요. 최신 목록을 보려면 새로고침해주세요.')
+      } else {
+        setAssignments(prevAssignments)
+        alert('마감일 변경 실패: ' + err.message)
+      }
     }
   }
 
@@ -151,8 +168,10 @@ export default function Assignments() {
     try {
       await deleteAssignment(a.id)
     } catch (err) {
-      setAssignments(prevAssignments)
-      alert('삭제 실패: ' + err.message)
+      if (!isRowMissing(err)) {
+        setAssignments(prevAssignments)
+        alert('삭제 실패: ' + err.message)
+      }
     }
   }
 
