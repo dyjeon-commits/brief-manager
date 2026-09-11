@@ -25,6 +25,7 @@ export default function Topics() {
   const [editId, setEditId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [checkedIds, setCheckedIds] = useState([])
+  const [deleting, setDeleting] = useState(false)
   // 템플릿 배분 모달
   const [tmplModal, setTmplModal] = useState(false)
   const [tmplTopic, setTmplTopic] = useState(null)
@@ -107,12 +108,15 @@ export default function Topics() {
     if (!confirm(msg)) return
     const prev = { topics, assignments, topicLabels, templateAssignments }
     removeTopicsLocally([id])
+    setDeleting(true)
     try {
       await deleteTopic(id)
     } catch (err) {
       setTopics(prev.topics); setAssignments(prev.assignments)
       setTopicLabelsState(prev.topicLabels); setTemplateAssignmentsState(prev.templateAssignments)
       alert('삭제 실패: ' + err.message)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -125,10 +129,20 @@ export default function Topics() {
     const ids = checkedIds
     removeTopicsLocally(ids)
     setCheckedIds([])
-    try {
-      for (const id of ids) await deleteTopic(id)
-    } catch (err) {
-      alert('일부 삭제 실패: ' + err.message)
+    setDeleting(true)
+    // 하나씩 순서대로 지우되, 중간에 하나 실패해도 나머지는 계속 시도한다
+    // (실패했다고 멈추면 남은 주제들이 화면엔 안 보이는데 시트엔 그대로 남는 상태가 됨)
+    const failedIds = []
+    for (const id of ids) {
+      try {
+        await deleteTopic(id)
+      } catch (err) {
+        failedIds.push(id)
+      }
+    }
+    setDeleting(false)
+    if (failedIds.length > 0) {
+      alert(`${failedIds.length}개 주제 삭제에 실패했어요. 목록을 새로고침해서 다시 시도해주세요.`)
       refresh()
     }
   }
@@ -305,15 +319,15 @@ export default function Topics() {
         <h1>작업주제 관리</h1>
         <div style={{ display: 'flex', gap: 8 }}>
           {checkedIds.length > 0 && (
-            <button className="btn btn-danger" onClick={removeChecked}>
-              🗑 {checkedIds.length}개 삭제
+            <button className="btn btn-danger" onClick={removeChecked} disabled={deleting}>
+              {deleting ? '삭제 중...' : `🗑 ${checkedIds.length}개 삭제`}
             </button>
           )}
-          <label style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: 'var(--text)' }}>
-            📂 CSV 업로드
-            <input type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvFile} />
+          <label style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: deleting ? 'not-allowed' : 'pointer', color: deleting ? 'var(--text2)' : 'var(--text)', opacity: deleting ? 0.6 : 1 }}>
+            📂 CSV 업로드{deleting ? ' (삭제 중이라 잠시 대기)' : ''}
+            <input type="file" accept=".csv" disabled={deleting} style={{ display: 'none' }} onChange={handleCsvFile} />
           </label>
-          <button className="btn btn-primary" onClick={openAdd}>+ 주제 추가</button>
+          <button className="btn btn-primary" onClick={openAdd} disabled={deleting} style={{ opacity: deleting ? 0.6 : 1 }}>+ 주제 추가</button>
         </div>
       </div>
       <p style={{ color: 'var(--text2)', fontSize: 13, marginBottom: 12 }}>
