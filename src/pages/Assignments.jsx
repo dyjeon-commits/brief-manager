@@ -384,7 +384,7 @@ export default function Assignments() {
   // 3단계: 디자이너에 주제 추가/제거
   function toggleWizardAssign(topicId, designerId) {
     const toggle = rows => rows.map(r => {
-      if (r.topic.id !== topicId) return r
+      if (String(r.topic.id) !== String(topicId)) return r
       const has = r.selectedDesignerIds.includes(designerId)
       return { ...r, selectedDesignerIds: has ? r.selectedDesignerIds.filter(x => x !== designerId) : [...r.selectedDesignerIds, designerId] }
     })
@@ -977,7 +977,7 @@ export default function Assignments() {
                           </span>
                           {/* 주제 추가 버튼 */}
                           <select style={{ fontSize: 11, padding: '2px 6px', border: '1.5px dashed var(--border)', borderRadius: 6, background: 'white', cursor: 'pointer', color: 'var(--accent)' }}
-                            value="" onChange={e => { if (e.target.value) toggleWizardAssign(Number(e.target.value), d.id) }}>
+                            value="" onChange={e => { if (e.target.value) toggleWizardAssign(e.target.value, d.id) }}>
                             <option value="">+ 주제 추가</option>
                             {allWizardRows().filter(r => !r.selectedDesignerIds.includes(d.id)).map(r => (
                               <option key={r.topic.id} value={r.topic.id}>{r.topic.name}</option>
