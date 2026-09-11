@@ -32,6 +32,7 @@ export default function Assignments() {
   const [tierMap, setTierMap] = useState({})
   const [tierSaving, setTierSaving] = useState(false)
   // 자동배분 wizard
+  const [assignProgress, setAssignProgress] = useState(null) // { done, total, failed } | null
   const [autoStep, setAutoStep] = useState(0) // 0=off, 1, 2, 3
   const [wizardVisibleAt, setWizardVisibleAt] = useState('')
   const [stepGrade, setStepGrade] = useState([])   // [{topic, selectedDesignerIds}]
@@ -92,6 +93,8 @@ export default function Assignments() {
   // 응답이 멈춰버릴 수 있어 (에러도 안 나고 완료도 안 되는 상태) — 하나씩 순서대로 보낸다.
   // items[i]와 optimisticRows[i]는 같은 순서로 만들어져 있어야 한다.
   async function createAssignmentsSequentially(items, optimisticRows) {
+    const total = items.length
+    setAssignProgress({ done: 0, total, failed: 0 })
     const failed = []
     for (let i = 0; i < items.length; i++) {
       const { designerId, topicId, visibleAt } = items[i]
@@ -103,12 +106,20 @@ export default function Assignments() {
         setAssignments(prev => prev.filter(a => a.id !== optimistic.id))
         failed.push({ designerId: designerMap[String(designerId)]?.name || designerId, topicId: topicMap[String(topicId)]?.name || topicId, error: err.message })
       }
+      setAssignProgress({ done: i + 1, total, failed: failed.length })
     }
     if (failed.length > 0) {
-      alert(`${failed.length}건 배정 실패 (나머지 ${items.length - failed.length}건은 정상 반영됨):\n` +
+      alert(`${failed.length}건 배정 실패 (나머지 ${total - failed.length}건은 정상 반영됨):\n` +
         failed.map(f => `- ${f.designerId} / ${f.topicId}: ${f.error}`).join('\n'))
     }
   }
+
+  useEffect(() => {
+    if (assignProgress && assignProgress.done >= assignProgress.total) {
+      const t = setTimeout(() => setAssignProgress(null), 8000)
+      return () => clearTimeout(t)
+    }
+  }, [assignProgress])
 
   // 다른 곳(다른 창/다른 사람)에서 이미 지워진 배정을 고치려 할 때 나는 에러 —
   // 예전 화면이 아직 남아있는 것뿐이라, 롤백 대신 그 줄을 화면에서도 치운다
@@ -1104,6 +1115,23 @@ export default function Assignments() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {assignProgress && (
+        <div style={{
+          position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', zIndex: 200,
+          background: assignProgress.done < assignProgress.total ? '#eef2ff' : (assignProgress.failed > 0 ? '#fef2f2' : '#f0fdf4'),
+          border: `1.5px solid ${assignProgress.done < assignProgress.total ? 'var(--accent)' : (assignProgress.failed > 0 ? 'var(--danger)' : 'var(--success)')}`,
+          borderRadius: 10, padding: '12px 20px', boxShadow: '0 8px 24px rgba(0,0,0,.15)',
+          display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, fontWeight: 600,
+        }}>
+          {assignProgress.done < assignProgress.total
+            ? <>⏳ 배정 저장 중... ({assignProgress.done}/{assignProgress.total}) — 저장이 끝날 때까지 새로고침하지 마세요</>
+            : <>{assignProgress.failed > 0 ? '⚠️' : '✅'} 배정 {assignProgress.total}건 저장 완료{assignProgress.failed > 0 ? ` (실패 ${assignProgress.failed}건)` : ''} — 이제 새로고침하거나 외주에게 알려도 됩니다</>}
+          {assignProgress.done >= assignProgress.total && (
+            <button className="btn btn-ghost" style={{ padding: '2px 8px' }} onClick={() => setAssignProgress(null)}>닫기</button>
+          )}
         </div>
       )}
     </div>
