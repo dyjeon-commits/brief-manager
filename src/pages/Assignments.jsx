@@ -88,6 +88,28 @@ export default function Assignments() {
     }
   }
 
+  // 배정을 한꺼번에 Promise.all로 동시에 여러 건 보내면 구글시트가 동시 쓰기 충돌로
+  // 응답이 멈춰버릴 수 있어 (에러도 안 나고 완료도 안 되는 상태) — 하나씩 순서대로 보낸다.
+  // items[i]와 optimisticRows[i]는 같은 순서로 만들어져 있어야 한다.
+  async function createAssignmentsSequentially(items, optimisticRows) {
+    const failed = []
+    for (let i = 0; i < items.length; i++) {
+      const { designerId, topicId, visibleAt } = items[i]
+      const optimistic = optimisticRows[i]
+      try {
+        const result = await addAssignment({ designerId, topicId, visibleAt: visibleAt || null })
+        setAssignments(prev => prev.map(a => a.id === optimistic.id ? result : a))
+      } catch (err) {
+        setAssignments(prev => prev.filter(a => a.id !== optimistic.id))
+        failed.push({ designerId: designerMap[String(designerId)]?.name || designerId, topicId: topicMap[String(topicId)]?.name || topicId, error: err.message })
+      }
+    }
+    if (failed.length > 0) {
+      alert(`${failed.length}건 배정 실패 (나머지 ${items.length - failed.length}건은 정상 반영됨):\n` +
+        failed.map(f => `- ${f.designerId} / ${f.topicId}: ${f.error}`).join('\n'))
+    }
+  }
+
   // 다른 곳(다른 창/다른 사람)에서 이미 지워진 배정을 고치려 할 때 나는 에러 —
   // 예전 화면이 아직 남아있는 것뿐이라, 롤백 대신 그 줄을 화면에서도 치운다
   function isRowMissing(err) {
@@ -197,16 +219,11 @@ export default function Assignments() {
   async function confirmAuto() {
     const dIds = selectedAuto
     const topicId = autoTopicId
+    const items = dIds.map(dId => ({ designerId: dId, topicId, visibleAt: null }))
     const optimisticRows = dIds.map(dId => makeOptimisticAssignment(dId, topicId, null))
     setAssignments(prev => [...prev, ...optimisticRows])
     setShowAutoModal(false)
-    try {
-      const results = await Promise.all(dIds.map(dId => addAssignment({ designerId: dId, topicId })))
-      setAssignments(prev => [...prev.filter(a => !optimisticRows.includes(a)), ...results])
-    } catch (err) {
-      setAssignments(prev => prev.filter(a => !optimisticRows.includes(a)))
-      alert('배정 실패: ' + err.message)
-    }
+    await createAssignmentsSequentially(items, optimisticRows)
   }
 
   const assignedTopicIds = form.designerId
@@ -224,16 +241,11 @@ export default function Assignments() {
     if (!form.designerId || form.topicIds.length === 0) return
     const designerId = form.designerId, visibleAt = form.visibleAt
     const topicIds = form.topicIds.filter(topicId => allowDuplicate || !assignedTopicIds.includes(String(topicId)))
+    const items = topicIds.map(topicId => ({ designerId, topicId, visibleAt }))
     const optimisticRows = topicIds.map(topicId => makeOptimisticAssignment(designerId, topicId, visibleAt))
     setAssignments(prev => [...prev, ...optimisticRows])
     setModal(false); setForm({ designerId: '', topicIds: [], visibleAt: '' }); setAllowDuplicate(false)
-    try {
-      const results = await Promise.all(topicIds.map(topicId => addAssignment({ designerId, topicId, visibleAt: visibleAt || null })))
-      setAssignments(prev => [...prev.filter(a => !optimisticRows.includes(a)), ...results])
-    } catch (err) {
-      setAssignments(prev => prev.filter(a => !optimisticRows.includes(a)))
-      alert('배정 실패: ' + err.message)
-    }
+    await createAssignmentsSequentially(items, optimisticRows)
   }
 
   const getDesignerGrade = (did) => {
@@ -370,16 +382,11 @@ export default function Assignments() {
       ...stepRandom.map(r => r.selectedDesignerIds.map(did => ({ designerId: did, topicId: r.topic.id }))).flat(),
     ]
     const visibleAt = wizardVisibleAt
+    const items = all.map(({ designerId, topicId }) => ({ designerId, topicId, visibleAt }))
     const optimisticRows = all.map(({ designerId, topicId }) => makeOptimisticAssignment(designerId, topicId, visibleAt))
     setAssignments(prev => [...prev, ...optimisticRows])
     setAutoStep(0); setWizardVisibleAt('')
-    try {
-      const results = await Promise.all(all.map(({ designerId, topicId }) => addAssignment({ designerId, topicId, visibleAt: visibleAt || null })))
-      setAssignments(prev => [...prev.filter(a => !optimisticRows.includes(a)), ...results])
-    } catch (err) {
-      setAssignments(prev => prev.filter(a => !optimisticRows.includes(a)))
-      alert('배정 실패: ' + err.message)
-    }
+    await createAssignmentsSequentially(items, optimisticRows)
   }
 
   // 3단계: all rows merged
